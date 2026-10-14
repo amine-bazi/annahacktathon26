@@ -42,6 +42,17 @@ export function anglesTete(m) {
   };
 }
 
+// Position de repos à partir d'échantillons [lacet, roulis] : médiane de chaque angle (robuste aux à-coups).
+// Avec une `tolerance` (degrés), renvoie null si la tête a bougé de plus que cela pendant la mesure.
+export function baseDepuisEchantillons(samples, tolerance = Infinity) {
+  if (!samples.length) return null;
+  const col = i => samples.map(s => s[i]).sort((a, b) => a - b);
+  const med = a => a.length % 2 ? a[(a.length - 1) / 2] : (a[a.length / 2 - 1] + a[a.length / 2]) / 2;
+  const ys = col(0), rs = col(1);
+  if (ys[ys.length - 1] - ys[0] > tolerance || rs[rs.length - 1] - rs[0] > tolerance) return null;
+  return { y: med(ys), r: med(rs) };
+}
+
 // Détecteur oui / non / pas de détection précise (même logique que la classe DetecteurRegard en Python).
 // ajouter(t, d, k) : t en ms, d = angle signé en degrés (positif du côté « oui », null si aucun visage),
 // k = réglage d'amplitude (1 = seuils par défaut). Renvoie { etat, score, scoreOui, scoreNon }.
@@ -82,7 +93,7 @@ export function createDetecteurRegard({ angleMin = ANGLE_MIN, anglePlein = ANGLE
 export function createHeadTracker({ video, onGesture, onMeters, onStatus, getSensitivity, getSwap = () => false, getFacing = () => 'environment', getHold = () => FENETRE / 1000, getCalib = () => 1, getSeuil = () => SEUIL_HAUT }) {
   let landmarker = null, stream = null, running = false, raf = 0, lastTime = -1;
   const det = createDetecteurRegard();
-  const st = { base: null, calib: [], calibStart: 0, etatPrec: INCERTAIN, cool: 0, rollT: 0 };
+  const st = { base: null, calib: [], calibStart: 0, soft: null, etatPrec: INCERTAIN, cool: 0, rollT: 0 };
 
   async function load() {
     if (landmarker) return;
@@ -115,11 +126,21 @@ export function createHeadTracker({ video, onGesture, onMeters, onStatus, getSen
     video.srcObject = null;
   }
 
-  // Position de repos : moyenne des angles pendant la durée de calibration (tête immobile, regard droit devant).
+  // Position de repos : médiane des angles pendant la durée de calibration (tête immobile, regard droit devant).
+  // La détection est suspendue pendant cette calibration « dure ».
   function recalibrate() {
-    Object.assign(st, { base: null, calib: [], calibStart: 0, etatPrec: INCERTAIN, rollT: 0 });
+    Object.assign(st, { base: null, calib: [], calibStart: 0, soft: null, etatPrec: INCERTAIN, rollT: 0 });
     det.reinitialiser();
     onStatus('Calibration : tête immobile…', '');
+  }
+
+  // Recalibrage « doux » (après chaque question) : la détection continue avec l'ancienne position de repos
+  // pendant qu'on mesure la nouvelle ; elle n'est adoptée que si la tête est restée stable (écart ≤ ANGLE_MIN)
+  // et raisonnablement proche du centre (≤ ANGLE_PLEIN × amplitude), pour ne jamais prendre une tête
+  // franchement tournée pour la position de repos.
+  function rebase() {
+    if (!running || !st.base) return;
+    st.soft = { start: 0, samples: [] };
   }
 
   function loop() {
@@ -145,11 +166,19 @@ export function createHeadTracker({ video, onGesture, onMeters, onStatus, getSen
       if (!st.calibStart) st.calibStart = now;
       st.calib.push([lacet, roulis]);
       if (now - st.calibStart < getCalib() * 1000 || st.calib.length < CALIB_MIN) return;
-      const moy = i => st.calib.reduce((a, v) => a + v[i], 0) / st.calib.length;
-      st.base = { y: moy(0), r: moy(1) };
+      st.base = baseDepuisEchantillons(st.calib);
       onStatus('Prêt', '');
     }
     const k = getSensitivity();
+    if (st.soft) {
+      if (!st.soft.start) st.soft.start = now;
+      st.soft.samples.push([lacet, roulis]);
+      if (now - st.soft.start >= getCalib() * 1000 && st.soft.samples.length >= CALIB_MIN) {
+        const b = baseDepuisEchantillons(st.soft.samples, ANGLE_MIN);
+        if (b && Math.abs(b.y - st.base.y) <= ANGLE_PLEIN * k) { st.base = b; det.reinitialiser(); st.etatPrec = INCERTAIN; }
+        st.soft = null;
+      }
+    }
     det.fenetre = getHold() * 1000;        // temps de détection réglable
     det.seuil = getSeuil();                // seuil de déclenchement réglable
     const dr = roulis - st.base.r;
@@ -168,7 +197,7 @@ export function createHeadTracker({ video, onGesture, onMeters, onStatus, getSen
     const r = det.ajouter(now, dy, k);
     onMeters(r.scoreOui, r.scoreNon, st.rollT ? Math.min(1, (now - st.rollT) / 1000) : Math.min(1, Math.abs(dr) / (ROULIS * k)));
     const pct = Math.round(r.score * 100);
-    onStatus(r.etat === INCERTAIN ? `Pas de détection précise · ${pct} %` : `${r.etat.toUpperCase()} · ${pct} %`, r.etat);
+    onStatus((r.etat === INCERTAIN ? `Pas de détection précise · ${pct} %` : `${r.etat.toUpperCase()} · ${pct} %`) + (st.soft ? ' · recalibrage' : ''), r.etat);
 
     // Un geste à l'entrée dans oui / non, une fois le temps mort passé ; retour au centre obligatoire entre deux.
     if (r.etat === INCERTAIN) st.etatPrec = INCERTAIN;
@@ -177,5 +206,5 @@ export function createHeadTracker({ video, onGesture, onMeters, onStatus, getSen
 
   const fire = g => onGesture(g);
 
-  return { start, stop, recalibrate, get running() { return running; } };
+  return { start, stop, recalibrate, rebase, get running() { return running; } };
 }

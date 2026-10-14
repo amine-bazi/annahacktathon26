@@ -21,6 +21,7 @@ export function normalizeSettings(s) {
     delai: num(s.delai, 0, 5, 1.5),                     // temporisation (s) : juste après une question, la tête n'est pas prise en compte
     calib: num(s.calib, 0.5, 3, 1),                     // durée de calibration de la position de repos (s)
     recal: s.recal !== false,                           // recalibrer au début de chaque enchaînement (mode automatisé)
+    recalQ: s.recalQ !== false,                         // recalibrage doux après chaque question, pendant la temporisation
     autoRepeat: num(s.autoRepeat, 5, 60, 20),           // mode automatisé : rappel de la question si pas de réponse (s)
     autoPause: num(s.autoPause, 10, 300, 60),           // mode automatisé : reprise après « pas maintenant » ou fin du tour (s)
   };

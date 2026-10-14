@@ -131,7 +131,7 @@ const AUTO_DONE_S = 10;   // secondes d'affichage du résumé avant de passer au
 const auto = { timer: 0, reminders: 0, visited: new Set() };
 // Réglages caméra de cet appareil (bouton « Réglages » en haut) : ils remplacent ceux d'Anna (espace admin)
 // sur cet appareil seulement, car la caméra, sa position et la lumière changent d'un appareil à l'autre.
-const CAM_KEYS = ['mode', 'hold', 'delai', 'sens', 'seuil', 'calib', 'recal', 'swap', 'cam'];
+const CAM_KEYS = ['mode', 'hold', 'delai', 'sens', 'seuil', 'calib', 'recal', 'recalQ', 'swap', 'cam'];
 const CAM_BOUNDS = { hold: [0.3, 2], delai: [0, 5], sens: [0.5, 1.6], seuil: [0.4, 0.9], calib: [0.5, 3] };
 let camLocal = store.get(K_CAM, {});
 function cfg() { const out = { ...(S?.settings || {}) }; for (const k of CAM_KEYS) if (camLocal[k] !== undefined) out[k] = camLocal[k]; return out; }
@@ -316,15 +316,16 @@ function startQuick(sg) {
   undo = []; showQ();
 }
 function showPlan() { F = { mode: 'done', theme: 'journee', path: ['Ma journée', 'Programme du jour'], result: 'resolu', action: 'planning', entryNotes: [], priv: false, quick: true }; render(); speak('Voici le programme de ta journée.'); }
-function showQ() { F.qTs = Date.now(); render(); speak(cur().q, isAuto()); autoWatch(cur().q); }
+function showQ() { F.qTs = Date.now(); render(); speak(cur().q, isAuto()); autoWatch(cur().q); scheduleRebase(); }
 
 // Ouverture en deux questions : « Coucou, est-ce que tu veux parler ? » puis « Ça va ? ».
 const INTRO = ['hello', 'welcome', 'rest'];
 function showHello() {
   F = { mode: 'hello', qTs: Date.now() }; undo = []; render(); speak('Coucou, est-ce que tu veux parler ?', isAuto());
   if (isAuto()) { auto.visited.clear(); if (cfg().recal && tracker.running) tracker.recalibrate(); autoWatch('Coucou, est-ce que tu veux parler ?'); }
+  else scheduleRebase();
 }
-function showWelcome() { F = { mode: 'welcome', qTs: Date.now() }; undo = []; render(); speak(`${name()}, ça va ?`, isAuto()); autoWatch(`${name()}, ça va ?`); }
+function showWelcome() { F = { mode: 'welcome', qTs: Date.now() }; undo = []; render(); speak(`${name()}, ça va ?`, isAuto()); autoWatch(`${name()}, ça va ?`); scheduleRebase(); }
 
 // Mode automatisé : si Anna ne répond pas, la question est répétée (deux fois), puis on fait une pause.
 function autoWatch(text) { if (!isAuto()) return; auto.reminders = 0; autoArm(() => autoRemind(text), cfg().autoRepeat); }
@@ -862,6 +863,7 @@ function admSettings() {
         <label class="fl">Seuil de déclenchement (score) : <b id="seuilV">${Math.round(S.settings.seuil * 100)} %</b><input type="range" id="seuil" min="0.4" max="0.9" step="0.05" value="${S.settings.seuil}"></label>
         <label class="fl">Durée de calibration de la position de repos : <b id="calibV">${fmtS(S.settings.calib)}</b><input type="range" id="calib" min="0.5" max="3" step="0.1" value="${S.settings.calib}"></label>
         <label class="ck"><input type="checkbox" id="recalAuto" ${S.settings.recal ? 'checked' : ''}> Recalibrer au début de chaque enchaînement (mode automatisé)</label>
+        <label class="ck"><input type="checkbox" id="recalQ" ${S.settings.recalQ ? 'checked' : ''}> Recalibrer après chaque question (pendant la temporisation, seulement si la tête est stable)</label>
         <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><button class="btn" id="recalNow" type="button">${ic('cam')} Recalibrer maintenant</button><span class="muted" style="font-size:13px">${tracker.running ? `Caméra active : ${esc(name())} regarde droit devant pendant la calibration.` : 'Active d’abord la caméra (bouton « Caméra » en haut).'}</span></div>
         <label class="fl">Caméra utilisée<select id="camSel">
           <option value="environment" ${S.settings.cam !== 'user' ? 'selected' : ''}>Arrière : téléphone tenu par la personne en face de ${esc(name())}</option>
@@ -924,6 +926,7 @@ function bindAdmin() {
   on('#calib', 'input', e => { $('#calibV').textContent = fmtS(e.target.value); });
   on('#calib', 'change', e => adm('save-settings', { ...S.settings, calib: +e.target.value }, 'Durée de calibration enregistrée'));
   on('#recalAuto', 'change', e => adm('save-settings', { ...S.settings, recal: e.target.checked }));
+  on('#recalQ', 'change', e => adm('save-settings', { ...S.settings, recalQ: e.target.checked }));
   on('#recalNow', 'click', () => { if (!tracker.running) return toast('Active d’abord la caméra.'); tracker.recalibrate(); toast('Recalibration : tête immobile, regard droit devant…'); });
   on('#autoRepeat', 'input', e => { $('#repV').textContent = e.target.value + ' s'; });
   on('#autoRepeat', 'change', e => adm('save-settings', { ...S.settings, autoRepeat: +e.target.value }, 'Délai de rappel enregistré'));
@@ -959,6 +962,7 @@ function openCamSettings() {
       <label class="fl">Seuil de déclenchement (score) : <b id="csSeuilV">${pct(c.seuil)}</b><input type="range" id="csSeuil" min="0.4" max="0.9" step="0.05" value="${c.seuil}"></label>
       <label class="fl">Durée de calibration de la position de repos : <b id="csCalibV">${fmtS(c.calib)}</b><input type="range" id="csCalib" min="0.5" max="3" step="0.1" value="${c.calib}"></label>
       <label class="ck"><input type="checkbox" id="csRecal" ${c.recal ? 'checked' : ''}> Recalibrer au début de chaque enchaînement</label>
+      <label class="ck"><input type="checkbox" id="csRecalQ" ${c.recalQ ? 'checked' : ''}> Recalibrer après chaque question (pendant la temporisation, seulement si la tête est stable)</label>
       <label class="fl">Caméra<select id="csCam">
         <option value="user" ${c.cam === 'user' ? 'selected' : ''}>Avant : écran tourné vers ${n} (tablette posée, portable)</option>
         <option value="environment" ${c.cam !== 'user' ? 'selected' : ''}>Arrière : téléphone tenu par la personne en face de ${n}</option></select></label>
@@ -976,6 +980,7 @@ function openCamSettings() {
   slider('#csSeuil', 'seuil', '#csSeuilV', pct);
   slider('#csCalib', 'calib', '#csCalibV', fmtS);
   $('#csRecal').onchange = e => setLocalCam('recal', e.target.checked);
+  $('#csRecalQ').onchange = e => setLocalCam('recalQ', e.target.checked);
   $('#csSwap').onchange = e => setLocalCam('swap', e.target.checked);
   $('#csCam').onchange = e => { setLocalCam('cam', e.target.value); if (tracker.running) { tracker.stop(); toggleCam(); } };
   $('#csMode').onchange = e => { setLocalCam('mode', e.target.value); renderTop(); if (isAuto() && !tracker.running) toggleCam(); };
@@ -988,6 +993,14 @@ function openCamSettings() {
 // n'est pas prise en compte pendant `delai` secondes, le temps qu'Anna revienne au centre. Une barre se vide à l'écran.
 const tooSoon = () => Date.now() - (F.qTs || 0) < cfg().delai * 1000;
 const waitBar = () => (tracker.running && cfg().delai > 0) ? `<div class="qwait" style="--d:${cfg().delai}s;--e:-${Math.max(0, (Date.now() - (F.qTs || 0)) / 1000)}s" title="Temporisation : la tête est prise en compte à la fin de la barre"><i></i><span>${ic('cam')} temporisation ${fmtS(cfg().delai)}</span></div>` : '';
+// Recalibrage doux après chaque question : lancé pendant la temporisation, pour que la mesure se fasse une fois
+// la tête revenue au centre (il dure « durée de calibration » et se termine avec la temporisation).
+let rebaseTimer = 0;
+function scheduleRebase() {
+  clearTimeout(rebaseTimer);
+  if (!tracker.running || !cfg().recalQ) return;
+  rebaseTimer = setTimeout(() => tracker.rebase(), Math.max(0, cfg().delai - cfg().calib) * 1000);
+}
 // Geste reçu de la caméra, ou d'un autre capteur par l'événement DOM « anna:gesture » (détail : oui / non / parler).
 function cameraGesture(g) {
   const ignore = g !== 'parler' && F.mode !== 'home' && tooSoon();
