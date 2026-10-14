@@ -111,7 +111,7 @@ addEventListener('online', flush);
 
 /* ================================================================ état */
 let S = null;          // données de la personne (banque, personnes, historique, stats)
-let F = { mode: 'home' }, undo = [], view = 'patient', cat = '__top', topCache = [];
+let F = { mode: 'home' }, undo = [], view = 'patient', topCache = [];
 let voice = store.get(K_VOICE, false);
 
 async function reload() { S = await api('GET', '/api/data?action=bootstrap'); }
@@ -374,6 +374,7 @@ function render() {
   if (view === 'admin') { m.innerHTML = renderAdmin(); bindAdmin(); return; }
   m.innerHTML = F.mode === 'home' ? renderBoard() : F.mode === 'q' ? renderQ() : F.mode === 'done' ? renderDone() : F.mode === 'deeper' ? renderDeeper() : renderSpell();
   m.scrollTop = 0;
+  if (F.mode === 'home') fitBoard();
 }
 function renderTop() {
   const now = new Date(), nav = view === 'patient' && F.mode !== 'home';
@@ -395,46 +396,44 @@ function renderSync() {
   el.innerHTML = outbox.length && !DEMO ? `<span class="sync" title="Réponses gardées sur la tablette, envoyées dès le retour du réseau">${ic('cloud')} ${outbox.length} en attente</span>` : '';
 }
 
-// Grille : les thèmes à gauche (avec leur pictogramme), les pictogrammes du thème choisi à droite.
+// Accueil : tout est visible d'un coup, sans clic ni défilement. Une ligne par thème
+// (nom et pictogramme du thème à gauche, pictogrammes de ses questions à droite), groupées par catégorie,
+// avec le Top 3 en tête. L'ensemble est mis à l'échelle pour tenir dans l'écran (fitBoard).
 function renderBoard() {
-  const groups = S.types.map(ty => ({ ty, ts: S.themes.filter(t => t.group === ty.id) })).filter(g => g.ts.length);
-  if (cat !== '__top' && !theme(cat)) cat = '__top';
-  const rail = `<nav class="rail" aria-label="Thèmes">
-    <button class="rb ${cat === '__top' ? 'cur' : ''}" style="--h:40" data-cat="__top">${ic('star')}<span>Top 3</span></button>
-    ${groups.map(g => `<p class="rh">${esc(g.ty.name)}</p>${g.ts.map(t => `<button class="rb ${t.id === cat ? 'cur' : ''}" style="--h:${g.ty.h}" data-cat="${esc(t.id)}">${ic(iconFor(t))}<span>${esc(t.label)}</span></button>`).join('')}`).join('')}
-  </nav>`;
-  let body;
-  if (cat === '__top') {
-    topCache = top3();
-    const cells = topCache.map((o, i) => {
-      if (o.kind === 'sugg') {
-        const t = theme(o.sg.theme), leaf = o.sg.path[o.sg.path.length - 1];
-        return `<button class="cell" style="--h:${typeOf(t.group).h}" data-top="${i}">${ic(itemIcon({ l: leaf }, t))}<b>${esc(o.sg.path.slice(1).join(' · '))}</b><small>${esc(t.label)} · fréquent</small></button>`;
-      }
-      return `<button class="cell" style="--h:${typeOf(o.t.group).h}" data-top="${i}">${ic(itemIcon(o.it, o.t))}<b>${esc(o.it.l)}</b><small>${esc(o.t.label)} · recommandé</small></button>`;
-    }).join('');
-    body = `<div class="ghead"><h2>${ic('star')} Top 3</h2><span>Les besoins les plus fréquents à cette heure</span></div>
-      <div class="cells">${cells}</div>
-      <div class="ghead sub"><h3>Raccourcis</h3></div>
-      <div class="cells">
-        <button class="cell" style="--h:40" data-act="scan">${ic('scan')}<b>Tout parcourir</b><small>Thème par thème, en oui / non</small></button>
-        <button class="cell" style="--h:40" data-act="spell">${ic('spell')}<b>Épeler</b><small>Lettre par lettre</small></button>
-        <button class="cell" style="--h:95" data-act="plan">${ic('plan')}<b>Ma journée</b><small>Le programme</small></button>
-      </div>`;
-  } else {
-    const t = theme(cat), h = typeOf(t.group).h;
-    const people = t.dynamic ? peopleOf(t).map(p => `<button class="cell" style="--h:${h}" data-person="${esc(p.id)}">${avatar(p)}<b>${esc(p.name)}</b><small>${esc(p.role)}</small></button>`) : [];
-    const items = ordered(t.items).map(it => {
-      const sub = it.ask ? `« ${it.ask} »` : Array.isArray(it.then) ? `${it.then.length} choix` : it.then === '@i' ? 'puis l’intensité' : '';
-      return `<button class="cell ${it.urgent ? 'urg' : ''}" style="--h:${h}" data-item="${esc(it.id)}" data-th="${esc(t.id)}">${ic(itemIcon(it, t))}<b>${esc(it.l)}</b>${sub ? `<small>${esc(sub)}</small>` : ''}</button>`;
-    });
-    const all = [...people, ...items];
-    body = `<div class="ghead"><div><h2>${ic(iconFor(t))} ${esc(t.label)}</h2>${t.private ? `<span class="lockn">${ic('intime')} Rien n’est enregistré</span>` : ''}</div>
-        ${all.length ? `<button class="btn sm" data-act="themeScan" data-th="${esc(t.id)}">${ic('scan')} Tout en oui / non</button>` : ''}</div>
-      ${all.length ? `<div class="cells">${all.join('')}</div>` : `<p class="empty">Pas encore de questions dans ce thème. Ajoute-les dans l’espace admin, onglet « Ajouter ».</p>`}`;
-  }
-  return `<div class="board">${rail}<div class="gridwrap">${body}</div></div>`;
+  topCache = top3();
+  const pic = (attrs, icon, label, h, extra = '') => `<button class="pic ${extra}" style="--h:${h}" ${attrs}>${icon}<span>${esc(label)}</span></button>`;
+  const top = topCache.map((o, i) => {
+    if (o.kind === 'sugg') {
+      const t = theme(o.sg.theme), leaf = o.sg.path[o.sg.path.length - 1];
+      return pic(`data-top="${i}"`, ic(itemIcon({ l: leaf }, t)), o.sg.path.slice(1).join(' · '), typeOf(t.group).h, 'hot');
+    }
+    return pic(`data-top="${i}"`, ic(itemIcon(o.it, o.t)), o.it.l, typeOf(o.t.group).h, 'hot');
+  }).join('');
+  const shortcuts = pic('data-act="scan"', ic('scan'), 'Tout parcourir', 40) + pic('data-act="spell"', ic('spell'), 'Épeler', 40) + pic('data-act="plan"', ic('plan'), 'Ma journée', 95);
+  const row = (t, h) => {
+    const people = t.dynamic ? peopleOf(t).map(p => pic(`data-person="${esc(p.id)}"`, avatar(p), p.name, h)) : [];
+    const items = ordered(t.items).map(it => pic(`data-item="${esc(it.id)}" data-th="${esc(t.id)}"`, ic(itemIcon(it, t)), it.l, h, it.urgent ? 'urg' : ''));
+    return `<div class="trow" style="--h:${h}">
+      <button class="tlab" data-act="themeScan" data-th="${esc(t.id)}" title="Tout le thème en oui / non">${ic(iconFor(t))}<span>${esc(t.label)}</span></button>
+      <div class="pics">${[...people, ...items].join('') || '<span class="muted" style="font-size:12px">Pas encore de questions</span>'}</div></div>`;
+  };
+  const cats = S.types.map(ty => ({ ty, ts: S.themes.filter(t => t.group === ty.id) })).filter(g => g.ts.length)
+    .map(g => `<section class="cat"><h3>${esc(g.ty.name)}</h3>${g.ts.map(t => row(t, g.ty.h)).join('')}</section>`).join('');
+  return `<div class="allwrap"><div class="all">
+    <div class="trow toprow" style="--h:40"><div class="tlab">${ic('star')}<span>Top 3</span></div><div class="pics">${top}<span class="sep"></span>${shortcuts}</div></div>
+    <div class="cats">${cats}</div>
+  </div></div>`;
 }
+// Cherche la plus grande échelle (≤ 1) pour laquelle tout l'accueil tient dans la zone visible.
+function fitBoard() {
+  const wrap = $('.allwrap'), all = $('.all'); if (!wrap || !all) return;
+  const fits = z => { all.style.zoom = z; return all.getBoundingClientRect().height <= wrap.clientHeight + 1; };
+  if (fits(1)) return;
+  let lo = 0.3, hi = 1;
+  for (let i = 0; i < 8; i++) { const mid = (lo + hi) / 2; if (fits(mid)) lo = mid; else hi = mid; }
+  all.style.zoom = lo;
+}
+addEventListener('resize', () => { if (view === 'patient' && F.mode === 'home') fitBoard(); });
 const crumbs = () => `<div class="crumbs">${F.path.map(p => `<span class="c">${esc(p)}</span>`).join('<span>›</span>')}${F.priv ? `<span class="c lockb">${ic('intime')} Non enregistré</span>` : ''}</div>`;
 function renderQ() {
   const it = cur(), top = F.stack[F.stack.length - 1];
@@ -482,7 +481,6 @@ $('#main').addEventListener('click', e => {
   if (view !== 'patient' || !S) return;
   const g = x => e.target.closest(x);
   let b;
-  if ((b = g('[data-cat]'))) { cat = b.dataset.cat; render(); $('.gridwrap')?.scrollTo(0, 0); return; }
   if ((b = g('[data-item]'))) return startItem(b.dataset.th, b.dataset.item);
   if ((b = g('[data-person]'))) { const p = S.people.find(x => x.id === b.dataset.person), th = personTheme(p); return startTheme(th, `${th}.${p.id}`); }
   if ((b = g('[data-top]'))) { const o = topCache[+b.dataset.top]; return o.kind === 'sugg' ? startQuick(o.sg) : startItem(o.t.id, o.it.id); }

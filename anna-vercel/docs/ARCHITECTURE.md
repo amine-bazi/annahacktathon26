@@ -85,7 +85,7 @@ anna-vercel/
 
 | Écran | Rôle |
 |---|---|
-| **Grille** | Thèmes à gauche, chacun avec son pictogramme et regroupés par catégorie (Besoins, Émotions, Échanger, Personnes, Proches, Centre, Activités, Autres). À droite, les pictogrammes des questions du thème choisi : toucher un pictogramme pose la question. En tête, **Top 3** : les 3 besoins les plus probables à cette heure |
+| **Accueil** | Tout visible d'un coup, sans clic ni défilement : **Top 3** en tête, puis une ligne par thème (nom et pictogramme du thème à gauche, pictogrammes de ses questions à droite), regroupées par catégorie. L'ensemble est mis à l'échelle pour tenir dans l'écran. Toucher un pictogramme pose la question ; toucher le nom du thème le parcourt en oui / non |
 | **Question** | Une question en très grand ; réponse par Oui / Non / Parler (boutons, clavier O/N/P, ou tête) |
 | **Résultat** | Résumé du besoin (« Douleur › Dos › Forte »), alerte si prioritaire, questions « Pour aller plus loin » pour l'entourage |
 | **Échanger** | Anna pose une question ou dit une phrase : affichée en grand et lue à voix haute |
