@@ -181,4 +181,17 @@ details{border-top:1px solid var(--line);padding-top:10px;margin-top:10px}
 summary{cursor:pointer;font-weight:700;font-size:15px;padding:4px 0;color:var(--accent)}
 details[open] summary{margin-bottom:10px}
 code.key{display:block;font-family:var(--mono);font-size:13px;padding:10px;border-radius:8px;background:var(--bg);overflow-wrap:anywhere;user-select:all}
+/* grille v2 : thèmes à gauche (titres de catégorie sur grand écran), pictogrammes à droite */
+.rh{display:none;margin:12px 6px 2px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}
+@media (min-width:720px){.rh{display:block}}
+.ghead{flex-wrap:wrap}
+.ghead h2{display:flex;align-items:center;gap:8px}
+.ghead h2 svg{font-size:24px;color:var(--accent)}
+.ghead.sub{margin-top:18px}
+.ghead.sub h3{margin:0;font-size:14px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}
+.lockn{display:inline-flex;gap:6px;align-items:center;font-size:13px;color:var(--priv)}
+.cell.urg{border-color:var(--urgent)}
+.rows li>svg{font-size:22px;color:var(--accent)}
+.card h3{display:flex;align-items:center;gap:8px}
+.card h3 svg{font-size:20px;color:var(--accent)}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}

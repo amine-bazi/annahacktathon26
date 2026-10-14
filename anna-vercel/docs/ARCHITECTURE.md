@@ -18,7 +18,7 @@ flowchart LR
     UI -- écritures --> Q
   end
   subgraph Soignant["Téléphone soignant"]
-    UI2["Même application<br/>+ espace soignant (code)"]
+    UI2["Même application<br/>+ espace admin (code)"]
   end
   subgraph Vercel
     CDN["CDN statique<br/>public/"]
@@ -31,7 +31,7 @@ flowchart LR
 
   UI -- "GET bootstrap" --> F1
   Q -- "POST events / conversation / note" --> F1
-  UI2 -- "code soignant" --> F2
+  UI2 -- "code admin" --> F2
   UI2 -- "édition banque" --> F3
   F1 & F2 & F3 --> DB
   Tablette -. charge .-> CDN
@@ -64,11 +64,11 @@ anna-vercel/
 ├── public/                 → servi par le CDN Vercel
 │   ├── index.html          coquille + pictogrammes SVG
 │   ├── styles.css          thème clair/sombre, grille mobile
-│   ├── app.js              écrans, déroulé des questions, moteur de reco, espace soignant, file d'attente
+│   ├── app.js              écrans, déroulé des questions, moteur de reco, espace admin, file d'attente
 │   └── head-tracking.js    MediaPipe → gestes oui / non / parler
 ├── api/                    → 3 Vercel Functions
 │   ├── data.js             lecture de la banque, enregistrement des réponses
-│   ├── auth.js             code soignant (création, connexion, déconnexion)
+│   ├── auth.js             code admin (création, connexion, déconnexion)
 │   └── admin.js            édition (questions, thèmes, types, personnes, réglages, clé d'appareil)
 ├── lib/                    code partagé côté serveur
 │   ├── db.js               client Neon
@@ -85,12 +85,12 @@ anna-vercel/
 
 | Écran | Rôle |
 |---|---|
-| **Grille** | Colonne de catégories à gauche (Rapide, Besoins, Émotions, Échanger, Personnes, Proches, Centre, Activités, Autres), grandes cases à droite |
+| **Grille** | Thèmes à gauche, chacun avec son pictogramme et regroupés par catégorie (Besoins, Émotions, Échanger, Personnes, Proches, Centre, Activités, Autres). À droite, les pictogrammes des questions du thème choisi : toucher un pictogramme pose la question. En tête, **Top 3** : les 3 besoins les plus probables à cette heure |
 | **Question** | Une question en très grand ; réponse par Oui / Non / Parler (boutons, clavier O/N/P, ou tête) |
 | **Résultat** | Résumé du besoin (« Douleur › Dos › Forte »), alerte si prioritaire, questions « Pour aller plus loin » pour l'entourage |
 | **Échanger** | Anna pose une question ou dit une phrase : affichée en grand et lue à voix haute |
 | **Épeler** | Balayage par groupes de lettres puis lettre par lettre |
-| **Espace soignant** | Protégé par code. Résumé · Questions (banque) · Réglages |
+| **Espace admin** | Protégé par code. Résumé (historique) · Ajouter (ajout de questions, ajout d’un contact) · Réglages (programme, gestes de tête, options) |
 
 ### 3.3 Reconnaissance des mouvements de tête
 
@@ -104,18 +104,20 @@ sequenceDiagram
   M->>H: 478 points du visage
   H->>H: nez + coins des yeux → lacet, tangage, roulis<br/>(normalisés par l'écart des yeux)
   Note over H: 25 premières images = position de repos (calibration)
-  H->>H: écart > seuil puis retour au repos en < 1,6 s
-  alt tangage dominant
+  H->>H: rotation > seuil puis retour au repos en < 1,6 s
+  alt tête tournée vers sa gauche
     H->>A: oui
-  else lacet dominant
+  else tête tournée vers sa droite
     H->>A: non
-  else roulis tenu 1 s
+  else tête penchée tenue 1 s
     H->>A: parler
   end
   A->>A: même traitement qu'un appui sur le bouton
 ```
 
-- **Seuils réglables** dans l'espace soignant (« amplitude du mouvement », de 50 % à 160 %), enregistrés par personne.
+- **Gestes** : tête tournée vers **sa gauche = oui**, vers **sa droite = non**, tête penchée tenue 1 s = je veux parler. Hocher ou baisser la tête n'est pas un geste.
+- **Sens gauche / droite** : calculé dans l'image brute de la caméra ; si un appareil renvoie une image miroir, l'option « Inverser gauche et droite » (Admin → Réglages) corrige, enregistrée par personne.
+- **Seuils réglables** dans l'espace admin (« amplitude du mouvement », de 50 % à 160 %), enregistrés par personne.
 - **Anti-rebond** : 1,2 s de pause après un oui/non, 2 s après « parler ».
 - **Dérive lente** : la position de repos suit doucement Anna quand elle est immobile ; recalibrage automatique si la tête reste décalée plus de 4 s, ou manuel (bouton « Recalibrer »).
 - **Chargement** : le moteur WebAssembly et le modèle (~3,6 Mo) sont téléchargés au premier clic sur « Caméra », puis mis en cache par le navigateur.
@@ -147,7 +149,7 @@ L'identifiant de chaque échange (UUID) est créé sur la tablette : un renvoi n
 
 ## 4. API
 
-Toutes les requêtes portent l'en-tête `x-device-key` (clé d'appareil). L'espace soignant ajoute un cookie de session.
+Toutes les requêtes portent l'en-tête `x-device-key` (clé d'appareil). L'espace admin ajoute un cookie de session.
 
 | Méthode | Route | Accès | Rôle |
 |---|---|---|---|
@@ -156,10 +158,10 @@ Toutes les requêtes portent l'en-tête `x-device-key` (clé d'appareil). L'espa
 | POST | `/api/data?action=conversation` | appareil | Un échange abouti |
 | POST | `/api/data?action=note` | appareil | Réponse à une question « pour aller plus loin » |
 | GET | `/api/auth?action=status` | appareil | Code existant ? Session active ? |
-| POST | `/api/auth?action=setup` | appareil | Créer le code soignant (si aucun) |
-| POST | `/api/auth?action=login` | appareil | Ouvrir une session soignant (8 h) |
+| POST | `/api/auth?action=setup` | appareil | Créer le code admin (si aucun) |
+| POST | `/api/auth?action=login` | appareil | Ouvrir une session admin (8 h) |
 | POST | `/api/auth?action=logout` | appareil | Fermer la session |
-| POST | `/api/admin?action=…` | appareil + soignant | `add-question`, `delete-question`, `add-theme`, `add-type`, `delete-type`, `add-followup`, `delete-followup`, `add-person`, `delete-person`, `save-plan`, `save-settings`, `change-pin`, `rotate-device-key` |
+| POST | `/api/admin?action=…` | appareil + admin | `add-question`, `delete-question`, `add-theme`, `add-type`, `delete-type`, `add-followup`, `delete-followup`, `add-person`, `delete-person`, `save-plan`, `save-settings`, `change-pin`, `rotate-device-key` |
 
 Trois fonctions seulement (routage par `?action=`) : on reste loin des limites du plan Hobby et les démarrages à froid sont mutualisés.
 
@@ -228,7 +230,7 @@ erDiagram
     text id PK
     text name
     text role
-    text kind "Famille, Amis, Équipe, Rencontres"
+    text kind "Proches, Équipe, Rencontres"
   }
   conversations {
     uuid id PK "créé par la tablette"
@@ -298,7 +300,7 @@ Le calcul se fait sur la tablette à partir des statistiques reçues au démarra
 | Images de la caméra | Traitées uniquement dans le navigateur, jamais envoyées ni stockées |
 | Accès aux données | Clé d'appareil de 192 bits dans le lien d'installation ; seul son hash SHA-256 est en base ; la clé est retirée de l'adresse dès l'ouverture |
 | Appareil perdu | « Générer un nouveau lien » révoque tous les autres appareils |
-| Espace soignant | Code hashé (scrypt, sel aléatoire) ; session de 8 h dans un cookie `HttpOnly; Secure; SameSite=Strict` signé HMAC-SHA256 ; 8 essais ratés max par 15 min et par adresse IP |
+| Espace admin | Code hashé (scrypt, sel aléatoire) ; session de 8 h dans un cookie `HttpOnly; Secure; SameSite=Strict` signé HMAC-SHA256 ; 8 essais ratés max par 15 min et par adresse IP |
 | Vie privée d'Anna | Thèmes et questions « sans historique » : rien n'est écrit, vérifié côté serveur |
 | Injection SQL | Requêtes paramétrées uniquement (gabarits du pilote Neon) |
 | En-têtes | `Permissions-Policy: camera=(self)`, HSTS, `X-Frame-Options: DENY`, `Referrer-Policy: no-referrer`, `nosniff` |
@@ -316,7 +318,7 @@ Le calcul se fait sur la tablette à partir des statistiques reçues au démarra
 |---|---|---|
 | **Anna** (tablette reliée) | Clé d'appareil | Répondre, épeler, demander la parole, poser des questions |
 | **Entourage** (à côté d'Anna) | Même écran | Toucher un thème, poser les questions « pour aller plus loin » |
-| **Soignant référent** | Clé d'appareil + code soignant | Lire le résumé et l'historique, éditer la banque, les personnes, le programme, les réglages, changer le code, renouveler le lien |
+| **Soignant référent** | Clé d'appareil + code admin | Lire le résumé et l'historique, éditer la banque, les personnes, le programme, les réglages, changer le code, renouveler le lien |
 | **Équipe technique** | Comptes Vercel et Neon | Déployer, migrer le schéma, créer une nouvelle personne (`db:seed`), sauvegarder et restaurer |
 
 Évolution prévue : un compte nominatif par soignant (journal « qui a modifié quoi »), en remplacement du code partagé.
@@ -330,7 +332,7 @@ flowchart LR
   U --> E["answer_events"]
   E --> R["Score de recommandation"]
   R --> U
-  R --> V["Revue hebdo soignant<br/>onglet Questions"]
+  R --> V["Revue hebdo soignant<br/>onglet Ajouter"]
   N["Besoins « non trouvés »<br/>onglet Résumé"] --> V
   V -- "ajoute / supprime / réordonne" --> B
 ```
@@ -360,9 +362,9 @@ Migrations : `db/schema.sql` est idempotent ; `npm run db:migrate` avant le dép
 
 | Limite | Piste |
 |---|---|
-| Code soignant partagé | Comptes nominatifs + journal des modifications |
+| Code admin partagé | Comptes nominatifs + journal des modifications |
 | Pas de notification en cas de besoin prioritaire | Notification push ou SMS à l'équipe (Web Push, ou un service certifié santé) |
-| Réordonner les questions à la main | Glisser-déposer dans l'onglet Questions |
+| Réordonner les questions à la main | Glisser-déposer dans l'onglet Ajouter |
 | Modèle MediaPipe chargé depuis Google | L'héberger dans `public/models/` (fichier `.task` de ~3,6 Mo) pour ne dépendre d'aucun tiers |
 | Gestes calibrés sur une seule personne | Profils de gestes (amplitude, délais) par personne, voire gestes alternatifs (clignement) |
 | Hébergement non HDS | Migration vers un hébergeur certifié HDS avant usage réel |

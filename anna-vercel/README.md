@@ -4,6 +4,10 @@ Communication **oui / non / je veux parler** au toucher ou par **mouvements de t
 
 Architecture détaillée : [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
 
+## Prototype autonome
+
+`npm run build:prototype` génère `dist/anna.html` : toute l'application en un seul fichier, avec des données d'exemple gardées dans le navigateur (aucun serveur). C'est ce fichier qui est publié comme prototype.
+
 ## Essayer en local, sans base
 
 ```bash
@@ -39,12 +43,16 @@ Puis ouvrir http://localhost:3000/?cle=demo. Les données sont en mémoire et re
    npm run db:seed -- --name "Anna" --demo
    ```
    Le seed affiche le **lien d'installation** (`https://…/?cle=…`). `--demo` ajoute des personnes d'exemple à remplacer.
-5. **Redéployer** pour que les fonctions prennent les variables, puis ouvrir le lien d'installation sur la tablette d'Anna. Le code soignant se crée au premier accès à l'espace soignant (icône ⚙︎).
+5. **Redéployer** pour que les fonctions prennent les variables, puis ouvrir le lien d'installation sur la tablette d'Anna. Le code admin se crée au premier accès à l'espace admin (bouton « Admin »).
 
 ## Utilisation
 
-- Anna répond avec **Non · Parler · Oui** en bas de l'écran, au clavier (O / N / P), ou avec la tête après un appui sur **Caméra** : hocher = oui, tourner = non, pencher 1 s = je veux parler.
-- Le lien d'installation est un secret : quiconque l'a peut lire les échanges. En cas d'appareil perdu : Espace soignant → Réglages → **Générer un nouveau lien**.
+- Anna répond avec **Non · Parler · Oui** en bas de l'écran, au clavier (O / N / P), ou avec la tête après un appui sur **Caméra** :
+  - **tête tournée vers sa gauche = oui**
+  - **tête tournée vers sa droite = non**
+  - pencher la tête et tenir 1 s = je veux parler
+  Si la caméra de la tablette inverse l'image : Admin → Réglages → « Inverser gauche et droite ».
+- Le lien d'installation est un secret : quiconque l'a peut lire les échanges. En cas d'appareil perdu : Admin → Réglages → **Générer un nouveau lien**.
 
 ## Données de santé
 

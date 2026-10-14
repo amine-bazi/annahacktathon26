@@ -4,7 +4,7 @@
 export const slug = s => String(s).normalize('NFD').replace(/[̀-ͯ]/g, '')
   .toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 
-export const PEOPLE_KINDS = ['Famille', 'Amis', 'Équipe', 'Rencontres'];
+export const PEOPLE_KINDS = ['Proches', 'Équipe', 'Rencontres'];
 
 /** Aplati le contenu par défaut (lib/defaults.js) en lignes prêtes à insérer. */
 export function flattenDefaults(types, themes) {
@@ -59,7 +59,7 @@ export function buildBootstrap({ patient, types, themes, questions, followups, p
   return {
     patientName: patient.display_name,
     plan: patient.daily_plan || '',
-    settings: { reco: patient.settings?.reco !== false, sens: Number(patient.settings?.sens) || 1 },
+    settings: { reco: patient.settings?.reco !== false, sens: Number(patient.settings?.sens) || 1, swap: !!patient.settings?.swap },
     hasPin: !!patient.admin_pin_hash,
     isAdmin: !!isAdmin,
     types: types.map(t => ({ id: t.id, name: t.name, short: t.short_label, icon: t.icon, h: t.hue })),

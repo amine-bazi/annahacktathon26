@@ -100,7 +100,7 @@ export const THEMES = [
     T('Quelqu’un d’autre', 'C’est à propos de quelqu’un d’autre ?', null, { action: 'spell' }),
     T('Nouvelle rencontre', 'Tu as rencontré quelqu’un de nouveau ?'),
   ], deeper: ['Tu as envie de revoir cette personne ?', 'Cette rencontre t’a fait plaisir ?', 'Tu veux que je lui transmette quelque chose ?', 'Il y a eu un malentendu ?', 'Tu veux en parler à l’équipe ?'] },
-  { id: 'proches', label: 'Proches', type: 'proches', sub: 'Famille, amis', icon: 'proches', peopleKinds: ['Famille', 'Amis'], items: [
+  { id: 'proches', label: 'Proches', type: 'proches', sub: 'Famille et amis', icon: 'proches', peopleKinds: ['Proches'], items: [
     T('Quelqu’un d’autre', 'C’est à propos d’un autre proche ?', null, { action: 'spell' }),
     T('Visite', 'C’est à propos d’une visite ?', kids([['Savoir quand', 'Tu veux savoir quand ?'], ['Pas aujourd’hui', 'Tu préfères pas de visite aujourd’hui ?'], ['Plus longue', 'Tu veux une visite plus longue ?']])),
     T('Photos / vidéos', 'Tu veux voir des photos ou des vidéos de tes proches ?'),
@@ -150,10 +150,10 @@ export const THEMES = [
 ];
 
 export const DEMO_PEOPLE = [
-  { name: 'Léa', role: 'fille', kind: 'Famille' },
-  { name: 'Hugo', role: 'petit-fils', kind: 'Famille' },
-  { name: 'Claire', role: 'sœur', kind: 'Famille' },
-  { name: 'Sophie', role: 'amie', kind: 'Amis' },
+  { name: 'Léa', role: 'fille', kind: 'Proches' },
+  { name: 'Hugo', role: 'petit-fils', kind: 'Proches' },
+  { name: 'Claire', role: 'sœur', kind: 'Proches' },
+  { name: 'Sophie', role: 'amie', kind: 'Proches' },
   { name: 'Dr Martin', role: 'médecin', kind: 'Équipe' },
   { name: 'Karim', role: 'kiné', kind: 'Équipe' },
   { name: 'Julie', role: 'aide-soignante', kind: 'Équipe' },

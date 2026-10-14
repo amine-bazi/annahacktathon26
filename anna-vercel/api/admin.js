@@ -78,7 +78,7 @@ const actions = {
   },
   async 'add-person'(p, b) {
     const name = str(b.name, 60);
-    const kind = PEOPLE_KINDS.includes(b.kind) ? b.kind : 'Famille';
+    const kind = PEOPLE_KINDS.includes(b.kind) ? b.kind : 'Proches';
     const id = `${slug(name) || 'p'}-${suffix()}`;
     await sql`INSERT INTO people (patient_id, id, name, role, kind, position)
               VALUES (${p.id}, ${id}, ${name}, ${str(b.role, 80, { optional: true })}, ${kind}, ${await nextPosition('people', p.id)})`;
@@ -91,7 +91,7 @@ const actions = {
     await sql`UPDATE patients SET daily_plan = ${str(b.plan, 4000, { optional: true })} WHERE id = ${p.id}`;
   },
   async 'save-settings'(p, b) {
-    const settings = { reco: b.reco !== false, sens: Math.min(1.6, Math.max(0.5, Number(b.sens) || 1)) };
+    const settings = { reco: b.reco !== false, sens: Math.min(1.6, Math.max(0.5, Number(b.sens) || 1)), swap: !!b.swap };
     await sql`UPDATE patients SET settings = ${JSON.stringify(settings)}::jsonb WHERE id = ${p.id}`;
   },
   async 'change-pin'(p, b) {

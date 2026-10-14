@@ -79,7 +79,7 @@ CREATE TABLE IF NOT EXISTS people (
   id          text NOT NULL,
   name        text NOT NULL,
   role        text NOT NULL DEFAULT '',
-  kind        text NOT NULL CHECK (kind IN ('Famille', 'Amis', 'Équipe', 'Rencontres')),
+  kind        text NOT NULL CHECK (kind IN ('Proches', 'Équipe', 'Rencontres')),
   position    int NOT NULL DEFAULT 0,
   PRIMARY KEY (patient_id, id)
 );
