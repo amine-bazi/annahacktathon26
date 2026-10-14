@@ -70,10 +70,16 @@ export function createDetecteurRegard({ angleMin = ANGLE_MIN, anglePlein = ANGLE
     return { etat, score, scoreOui: sOui, scoreNon: sNon };
   }
   function reinitialiser() { ech.length = 0; tPrec = null; etat = INCERTAIN; }
-  return { ajouter, reinitialiser, get etat() { return etat; }, get fenetre() { return fenetre; }, set fenetre(v) { fenetre = Math.max(100, Number(v) || FENETRE); } };
+  return {
+    ajouter, reinitialiser,
+    get etat() { return etat; },
+    get fenetre() { return fenetre; }, set fenetre(v) { fenetre = Math.max(100, Number(v) || FENETRE); },
+    // Seuil de déclenchement : score d'entrée ; la sortie se fait 20 points plus bas (hystérésis).
+    get seuil() { return seuilHaut; }, set seuil(v) { seuilHaut = Math.min(0.95, Math.max(0.2, Number(v) || SEUIL_HAUT)); seuilBas = Math.max(0.1, seuilHaut - 0.2); },
+  };
 }
 
-export function createHeadTracker({ video, onGesture, onMeters, onStatus, getSensitivity, getSwap = () => false, getFacing = () => 'environment', getHold = () => FENETRE / 1000, getCalib = () => 1 }) {
+export function createHeadTracker({ video, onGesture, onMeters, onStatus, getSensitivity, getSwap = () => false, getFacing = () => 'environment', getHold = () => FENETRE / 1000, getCalib = () => 1, getSeuil = () => SEUIL_HAUT }) {
   let landmarker = null, stream = null, running = false, raf = 0, lastTime = -1;
   const det = createDetecteurRegard();
   const st = { base: null, calib: [], calibStart: 0, etatPrec: INCERTAIN, cool: 0, rollT: 0 };
@@ -145,6 +151,7 @@ export function createHeadTracker({ video, onGesture, onMeters, onStatus, getSen
     }
     const k = getSensitivity();
     det.fenetre = getHold() * 1000;        // temps de détection réglable
+    det.seuil = getSeuil();                // seuil de déclenchement réglable
     const dr = roulis - st.base.r;
     // Dans l'image brute de la caméra, le lacet devient positif quand Anna tourne la tête vers SA gauche.
     let dy = lacet - st.base.y;

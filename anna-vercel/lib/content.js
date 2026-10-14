@@ -13,6 +13,7 @@ export function normalizeSettings(s) {
   return {
     reco: s.reco !== false,                            // poser d'abord les questions les plus efficaces
     sens: num(s.sens, 0.5, 1.6, 1),                     // amplitude du mouvement de tête (multiplie les angles)
+    seuil: num(s.seuil, 0.4, 0.9, 0.6),                 // seuil de déclenchement : score d'entrée dans oui / non
     swap: !!s.swap,                                     // inverser gauche et droite
     cam: s.cam === 'user' ? 'user' : 'environment',     // caméra avant ou arrière
     mode: s.mode === 'auto' ? 'auto' : 'classique',     // classique (une personne touche l'écran) ou automatisé (caméra)

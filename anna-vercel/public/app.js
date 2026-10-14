@@ -63,7 +63,7 @@ const store = {
   get(k, d) { try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch { return d; } },
   set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* stockage indisponible */ } },
 };
-const K_KEY = 'anna-device-key', K_OUTBOX = 'anna-outbox', K_VOICE = 'anna-voice';
+const K_KEY = 'anna-device-key', K_OUTBOX = 'anna-outbox', K_VOICE = 'anna-voice', K_CAM = 'anna-cam';
 
 // Prototype autonome : le backend de démo est embarqué dans la page (voir scripts/build-prototype.mjs).
 const DEMO = globalThis.ANNA_DEMO || null;
@@ -129,7 +129,19 @@ let voice = store.get(K_VOICE, false);
 // Sans réponse, la question est répétée (deux fois), puis l'application fait une pause avant de reprendre.
 const AUTO_DONE_S = 10;   // secondes d'affichage du résumé avant de passer au thème suivant
 const auto = { timer: 0, reminders: 0, visited: new Set() };
-const isAuto = () => S?.settings.mode === 'auto';
+// Réglages caméra de cet appareil (bouton « Réglages » en haut) : ils remplacent ceux d'Anna (espace admin)
+// sur cet appareil seulement, car la caméra, sa position et la lumière changent d'un appareil à l'autre.
+const CAM_KEYS = ['mode', 'hold', 'sens', 'seuil', 'calib', 'recal', 'swap', 'cam'];
+const CAM_BOUNDS = { hold: [0.3, 2], sens: [0.5, 1.6], seuil: [0.4, 0.9], calib: [0.5, 3] };
+let camLocal = store.get(K_CAM, {});
+function cfg() { const out = { ...(S?.settings || {}) }; for (const k of CAM_KEYS) if (camLocal[k] !== undefined) out[k] = camLocal[k]; return out; }
+const hasLocalCam = () => CAM_KEYS.some(k => camLocal[k] !== undefined);
+function setLocalCam(k, v) {
+  if (CAM_BOUNDS[k]) { const [lo, hi] = CAM_BOUNDS[k]; v = Math.min(hi, Math.max(lo, Number(v) || lo)); }
+  camLocal = { ...camLocal, [k]: v }; store.set(K_CAM, camLocal);
+}
+function clearLocalCam() { camLocal = {}; store.set(K_CAM, camLocal); }
+const isAuto = () => !!S && cfg().mode === 'auto';
 function autoArm(fn, s) { autoClear(); auto.timer = setTimeout(() => { auto.timer = 0; fn(); }, s * 1000); }
 function autoClear() { if (auto.timer) clearTimeout(auto.timer); auto.timer = 0; }
 
@@ -310,22 +322,22 @@ function showQ() { F.qTs = Date.now(); render(); speak(cur().q, isAuto()); autoW
 const INTRO = ['hello', 'welcome', 'rest'];
 function showHello() {
   F = { mode: 'hello' }; undo = []; render(); speak('Coucou, est-ce que tu veux parler ?', isAuto());
-  if (isAuto()) { auto.visited.clear(); if (S.settings.recal && tracker.running) tracker.recalibrate(); autoWatch('Coucou, est-ce que tu veux parler ?'); }
+  if (isAuto()) { auto.visited.clear(); if (cfg().recal && tracker.running) tracker.recalibrate(); autoWatch('Coucou, est-ce que tu veux parler ?'); }
 }
 function showWelcome() { F = { mode: 'welcome' }; undo = []; render(); speak(`${name()}, ça va ?`, isAuto()); autoWatch(`${name()}, ça va ?`); }
 
 // Mode automatisé : si Anna ne répond pas, la question est répétée (deux fois), puis on fait une pause.
-function autoWatch(text) { if (!isAuto()) return; auto.reminders = 0; autoArm(() => autoRemind(text), S.settings.autoRepeat); }
+function autoWatch(text) { if (!isAuto()) return; auto.reminders = 0; autoArm(() => autoRemind(text), cfg().autoRepeat); }
 function autoRemind(text) {
   if (!isAuto() || view !== 'patient' || !['q', 'hello', 'welcome'].includes(F.mode)) return;
   if (++auto.reminders > 2) return autoRest('Je te laisse tranquille un moment.');
-  speak(text, true); autoArm(() => autoRemind(text), S.settings.autoRepeat);
+  speak(text, true); autoArm(() => autoRemind(text), cfg().autoRepeat);
 }
 // Pause : écran calme, puis on redemande « Tu veux parler ? » après le délai de reprise (ou dès un « oui »).
 function autoRest(phrase) {
   auto.visited.clear(); F = { mode: 'rest' }; undo = []; render();
   if (phrase) speak(phrase, true);
-  autoArm(showHello, S.settings.autoPause);
+  autoArm(showHello, cfg().autoPause);
 }
 function autoEndCycle() { autoRest('Merci. Je te redemande dans un moment.'); }
 function resumeScan() { if (!isAuto()) return goHome(); startScan(); }
@@ -336,7 +348,7 @@ function answer(a) {
   if (INTRO.includes(F.mode) && a !== 'parler') {
     if (view !== 'patient') return;
     flash(a); sayAnswer(a);
-    if (F.mode === 'rest') { if (a === 'oui') showHello(); else if (isAuto()) autoArm(showHello, S.settings.autoPause); return; }
+    if (F.mode === 'rest') { if (a === 'oui') showHello(); else if (isAuto()) autoArm(showHello, cfg().autoPause); return; }
     if (F.mode === 'hello') {
       record(newEntry('accueil', ['Tu veux parler ?', a === 'oui' ? 'Oui' : 'Non'], 'resolu'));
       if (a === 'oui') return showWelcome();
@@ -457,10 +469,17 @@ function talk() {
     </div></div></div>`;
 }
 function closeOv() { $('#ovRoot').innerHTML = ''; }
+// Après la fermeture d'un panneau : en mode automatisé, l'enchaînement reprend là où il en était.
+function afterOverlay() {
+  if (!isAuto()) return render();
+  if (F.mode === 'home' || F.mode === 'rest' || F.mode === 'hello') return showHello();
+  if (F.mode === 'welcome') return showWelcome();
+  render(); if (F.mode === 'q') autoWatch(cur().q);
+}
 document.addEventListener('click', e => {
   const b = e.target.closest('[data-ov]'); if (!b) return;
   const k = b.dataset.ov; closeOv();
-  if (k === 'close') { render(); if (isAuto() && F.mode === 'q') autoWatch(cur().q); return; }
+  if (k === 'close') return afterOverlay();
   view = 'patient';
   if (k === 'spell') startSpell(['Message']); else if (k === 'scan') startScan(); else if (k === 'proches') startTheme('proches');
 });
@@ -483,12 +502,14 @@ function renderTop() {
     ${nav && !INTRO.includes(F.mode) ? `<button class="ib nav-b" id="tBack" aria-label="Retour">${ic('back')}<span class="lb">Retour</span></button>` : ''}
     ${view === 'patient' && F.mode !== 'hello' ? `<button class="ib nav-b" id="tHome" aria-label="Accueil : Coucou, est-ce que tu veux parler ?">${ic('home')}<span class="lb">Accueil</span></button>` : ''}
     <button class="ib ${tracker.running ? 'on' : ''}" id="tCam" aria-label="Caméra" title="${GESTURES}">${ic('cam')}<span class="lb">${tracker.running ? 'Tête active' : 'Caméra'}</span></button>
+    <button class="ib ${hasLocalCam() ? 'on' : ''}" id="tCamSet" aria-label="Paramètres caméra" title="Paramètres caméra : temps de détection, amplitude, seuil, calibration">${ic('sliders')}<span class="lb">Réglages</span></button>
     <button class="ib ${voice ? 'on' : ''}" id="tVoice" aria-label="Voix" title="Lire les questions à voix haute">${ic('voice')}<span class="lb">Voix</span></button>
     <button class="ib ${view === 'admin' ? 'on' : ''}" id="tView" aria-label="${view === 'admin' ? 'Retour à la vue patient' : 'Espace admin'}">${view === 'admin' ? ic('home') : ic('gear')}<span class="lb">${view === 'admin' ? 'Vue ' + esc(name()) : 'Admin'}</span></button>`;
   $('#tBack')?.addEventListener('click', back);
   // Accueil = retour au tout premier écran « Coucou, est-ce que tu veux parler ? »
   $('#tHome')?.addEventListener('click', () => { boardTheme = null; boardPage = 0; showHello(); });
   $('#tCam').onclick = toggleCam;
+  $('#tCamSet').onclick = openCamSettings;
   $('#tVoice').onclick = () => { voice = !voice; store.set(K_VOICE, voice); renderTop(); if (voice) speak('Lecture à voix haute activée'); };
   $('#tView').onclick = () => view === 'admin' ? leaveAdmin() : openAdmin();
   renderSync();
@@ -834,8 +855,10 @@ function admSettings() {
     <div class="card"><h3>Caméra et mouvements de tête</h3>
       <div class="fgrid">
         <p class="muted" style="margin:0;font-size:14px">${GESTURES}.</p>
+        ${hasLocalCam() ? '<p class="muted" style="margin:0;font-size:13.5px">Cet appareil utilise ses propres réglages caméra, modifiables avec le bouton « Réglages » en haut de l’écran. Les valeurs ci-dessous sont celles d’Anna, pour les autres appareils.</p>' : ''}
         <label class="fl">Temps de détection (tête tournée) : <b id="holdV">${fmtS(S.settings.hold)}</b><input type="range" id="hold" min="0.3" max="2" step="0.1" value="${S.settings.hold}"></label>
         <label class="fl">Amplitude du mouvement : <b id="sensV">${Math.round(S.settings.sens * 100)} %</b><input type="range" id="sens" min="0.5" max="1.6" step="0.05" value="${S.settings.sens}"></label>
+        <label class="fl">Seuil de déclenchement (score) : <b id="seuilV">${Math.round(S.settings.seuil * 100)} %</b><input type="range" id="seuil" min="0.4" max="0.9" step="0.05" value="${S.settings.seuil}"></label>
         <label class="fl">Durée de calibration de la position de repos : <b id="calibV">${fmtS(S.settings.calib)}</b><input type="range" id="calib" min="0.5" max="3" step="0.1" value="${S.settings.calib}"></label>
         <label class="ck"><input type="checkbox" id="recalAuto" ${S.settings.recal ? 'checked' : ''}> Recalibrer au début de chaque enchaînement (mode automatisé)</label>
         <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><button class="btn" id="recalNow" type="button">${ic('cam')} Recalibrer maintenant</button><span class="muted" style="font-size:13px">${tracker.running ? `Caméra active : ${esc(name())} regarde droit devant pendant la calibration.` : 'Active d’abord la caméra (bouton « Caméra » en haut).'}</span></div>
@@ -890,6 +913,8 @@ function bindAdmin() {
   on('#swap', 'change', e => adm('save-settings', { ...S.settings, swap: e.target.checked }, e.target.checked ? 'Gauche et droite inversées' : 'Sens normal'));
   on('#sens', 'input', e => { $('#sensV').textContent = Math.round(e.target.value * 100) + ' %'; });
   on('#sens', 'change', e => adm('save-settings', { ...S.settings, sens: +e.target.value }, 'Amplitude enregistrée'));
+  on('#seuil', 'input', e => { $('#seuilV').textContent = Math.round(e.target.value * 100) + ' %'; });
+  on('#seuil', 'change', e => adm('save-settings', { ...S.settings, seuil: +e.target.value }, 'Seuil enregistré'));
   on('#modeSel', 'change', async e => { const mode = e.target.value; await adm('save-settings', { ...S.settings, mode }, mode === 'auto' ? 'Mode automatisé : l’enchaînement démarre en quittant l’espace admin' : 'Mode classique activé'); if (mode === 'auto' && !tracker.running) toggleCam(); });
   on('#hold', 'input', e => { $('#holdV').textContent = fmtS(e.target.value); });
   on('#hold', 'change', e => adm('save-settings', { ...S.settings, hold: +e.target.value }, 'Temps de détection enregistré'));
@@ -913,15 +938,56 @@ function bindAdmin() {
   }));
 }
 
+/* ================================================================ panneau « Paramètres caméra » (réglages de cet appareil) */
+function openCamSettings() {
+  autoClear();
+  const c = cfg(), pct = v => Math.round(v * 100) + ' %', n = esc(name());
+  $('#ovRoot').innerHTML = `<div class="ov" role="dialog" aria-modal="true" aria-labelledby="csT"><div class="ovc cs">
+    <h2 id="csT">${ic('sliders')} Paramètres caméra</h2>
+    <p class="muted" style="margin:0">${GESTURES}. Les changements s’appliquent tout de suite et restent sur cet appareil.</p>
+    <div class="csState" id="csState" data-etat="">${tracker.running ? esc($('#camMsg').textContent) : 'Caméra inactive'}</div>
+    <div class="fgrid">
+      <label class="fl">Mode de réponse<select id="csMode">
+        <option value="classique" ${c.mode !== 'auto' ? 'selected' : ''}>Classique : une personne touche l’écran</option>
+        <option value="auto" ${c.mode === 'auto' ? 'selected' : ''}>Automatisé : enchaînement de questions par la caméra</option></select></label>
+      <label class="fl">Temps de détection (tête tournée) : <b id="csHoldV">${fmtS(c.hold)}</b><input type="range" id="csHold" min="0.3" max="2" step="0.1" value="${c.hold}"></label>
+      <label class="fl">Amplitude du mouvement (angle à tourner) : <b id="csSensV">${pct(c.sens)}</b><input type="range" id="csSens" min="0.5" max="1.6" step="0.05" value="${c.sens}"></label>
+      <label class="fl">Seuil de déclenchement (score) : <b id="csSeuilV">${pct(c.seuil)}</b><input type="range" id="csSeuil" min="0.4" max="0.9" step="0.05" value="${c.seuil}"></label>
+      <label class="fl">Durée de calibration de la position de repos : <b id="csCalibV">${fmtS(c.calib)}</b><input type="range" id="csCalib" min="0.5" max="3" step="0.1" value="${c.calib}"></label>
+      <label class="ck"><input type="checkbox" id="csRecal" ${c.recal ? 'checked' : ''}> Recalibrer au début de chaque enchaînement</label>
+      <label class="fl">Caméra<select id="csCam">
+        <option value="user" ${c.cam === 'user' ? 'selected' : ''}>Avant : écran tourné vers ${n} (tablette posée, portable)</option>
+        <option value="environment" ${c.cam !== 'user' ? 'selected' : ''}>Arrière : téléphone tenu par la personne en face de ${n}</option></select></label>
+      <label class="ck"><input type="checkbox" id="csSwap" ${c.swap ? 'checked' : ''}> Inverser gauche et droite</label>
+    </div>
+    <div class="row">
+      <button class="btn primary" id="csRecalNow" type="button">${ic('cam')} ${tracker.running ? 'Recalibrer maintenant' : 'Activer la caméra'}</button>
+      ${hasLocalCam() ? `<button class="btn" id="csReset" type="button">Revenir aux réglages de ${n}</button>` : ''}
+      <button class="btn" data-ov="close" type="button">Fermer</button>
+    </div></div></div>`;
+  const slider = (id, key, label, fmt) => { $(id).oninput = e => { setLocalCam(key, e.target.value); $(label).textContent = fmt(cfg()[key]); }; };
+  slider('#csHold', 'hold', '#csHoldV', fmtS);
+  slider('#csSens', 'sens', '#csSensV', pct);
+  slider('#csSeuil', 'seuil', '#csSeuilV', pct);
+  slider('#csCalib', 'calib', '#csCalibV', fmtS);
+  $('#csRecal').onchange = e => setLocalCam('recal', e.target.checked);
+  $('#csSwap').onchange = e => setLocalCam('swap', e.target.checked);
+  $('#csCam').onchange = e => { setLocalCam('cam', e.target.value); if (tracker.running) { tracker.stop(); toggleCam(); } };
+  $('#csMode').onchange = e => { setLocalCam('mode', e.target.value); renderTop(); if (isAuto() && !tracker.running) toggleCam(); };
+  $('#csRecalNow').onclick = async () => { if (tracker.running) { tracker.recalibrate(); toast(`Recalibration : ${n} regarde droit devant, tête immobile…`); } else { await toggleCam(); openCamSettings(); } };
+  const reset = $('#csReset'); if (reset) reset.onclick = () => { const cam = cfg().cam; clearLocalCam(); renderTop(); if (tracker.running && cfg().cam !== cam) { tracker.stop(); toggleCam(); } openCamSettings(); };
+}
+
 /* ================================================================ caméra (MediaPipe) */
 const tracker = createHeadTracker({
   video: $('#vid'),
-  getSensitivity: () => S?.settings.sens || 1,
-  getSwap: () => !!S?.settings.swap,
-  getFacing: () => S?.settings.cam || 'environment',
-  getHold: () => S?.settings.hold || 0.6,
-  getCalib: () => S?.settings.calib || 1,
-  onStatus: (msg, etat) => { const el = $('#camMsg'); el.textContent = msg; el.dataset.etat = etat || ''; },
+  getSensitivity: () => S ? cfg().sens : 1,
+  getSwap: () => !!S && !!cfg().swap,
+  getFacing: () => S ? cfg().cam : 'environment',
+  getHold: () => S ? cfg().hold : 0.6,
+  getCalib: () => S ? cfg().calib : 1,
+  getSeuil: () => S ? cfg().seuil : 0.6,
+  onStatus: (msg, etat) => { for (const el of [$('#camMsg'), $('#csState')]) if (el) { el.textContent = msg; el.dataset.etat = etat || ''; } },
   onMeters: (yes, no, talk) => { $('#mP').style.width = Math.min(100, yes * 100) + '%'; $('#mY').style.width = Math.min(100, no * 100) + '%'; $('#mR').style.width = Math.min(100, talk * 100) + '%'; },
   onGesture: g => { $('#camLast').textContent = { oui: 'Oui', non: 'Non', parler: 'Parler' }[g]; answer(g); },
 });
