@@ -374,7 +374,6 @@ function render() {
   if (view === 'admin') { m.innerHTML = renderAdmin(); bindAdmin(); return; }
   m.innerHTML = F.mode === 'home' ? renderBoard() : F.mode === 'q' ? renderQ() : F.mode === 'done' ? renderDone() : F.mode === 'deeper' ? renderDeeper() : renderSpell();
   m.scrollTop = 0;
-  if (F.mode === 'home') fitBoard();
 }
 function renderTop() {
   const now = new Date(), nav = view === 'patient' && F.mode !== 'home';
@@ -396,44 +395,65 @@ function renderSync() {
   el.innerHTML = outbox.length && !DEMO ? `<span class="sync" title="Réponses gardées sur la tablette, envoyées dès le retour du réseau">${ic('cloud')} ${outbox.length} en attente</span>` : '';
 }
 
-// Accueil : tout est visible d'un coup, sans clic ni défilement. Une ligne par thème
-// (nom et pictogramme du thème à gauche, pictogrammes de ses questions à droite), groupées par catégorie,
-// avec le Top 3 en tête. L'ensemble est mis à l'échelle pour tenir dans l'écran (fitBoard).
+// Accueil pensé pour le téléphone, sans surcharge et sans défilement :
+// une ligne par thème = le thème, ses 3 pictogrammes les plus importants (moteur de recommandation)
+// et « + » pour le reste. Autant de lignes que l'écran en permet, puis Page suivante / Page précédente.
+let boardPage = 0, boardTheme = null, themePage = 0;
+const pic = (attrs, icon, label, h, extra = '') => `<button class="pic ${extra}" style="--h:${h}" ${attrs}>${icon}<span>${esc(label)}</span></button>`;
+const pager = (page, pages, prev, next) => pages > 1 ? `<nav class="pager" aria-label="Pages">
+    <button class="btn" data-act="${prev}" ${page === 0 ? 'disabled' : ''}>${ic('gauche')} Précédente</button>
+    <span>Page ${page + 1} / ${pages}</span>
+    <button class="btn" data-act="${next}" ${page >= pages - 1 ? 'disabled' : ''}>Suivante ${ic('droite')}</button></nav>` : '';
+// Pictogrammes d'un thème, les plus importants d'abord : personnes (thèmes Proches / Personnes) puis questions.
+function themePics(t, h) {
+  const people = t.dynamic ? ordered(peopleOf(t).map(p => personItem(t, p))).map(it => { const p = S.people.find(x => x.id === it.person); return pic(`data-person="${esc(p.id)}"`, avatar(p), p.name, h); }) : [];
+  const items = ordered(t.items).map(it => pic(`data-item="${esc(it.id)}" data-th="${esc(t.id)}"`, ic(itemIcon(it, t)), it.l, h, it.urgent ? 'urg' : ''));
+  return [...people, ...items];
+}
+function boardSpace() { return Math.max(320, ($('#main')?.clientHeight || 600) - 24); }
 function renderBoard() {
+  if (boardTheme && theme(boardTheme)) return renderThemePage();
+  boardTheme = null;
+  const avail = boardSpace(), rowH = avail > 700 ? 124 : 104;   // lignes hautes : lisibles par la personne qui tient le téléphone
+  const perPage = Math.max(3, Math.floor((avail - 64) / rowH));   // 64 = barre de pages
   topCache = top3();
-  const pic = (attrs, icon, label, h, extra = '') => `<button class="pic ${extra}" style="--h:${h}" ${attrs}>${icon}<span>${esc(label)}</span></button>`;
-  const top = topCache.map((o, i) => {
+  const topRow = `<div class="trow toprow" style="--h:40"><div class="tlab">${ic('star')}<span>Top 3</span></div>${topCache.map((o, i) => {
     if (o.kind === 'sugg') {
-      const t = theme(o.sg.theme), leaf = o.sg.path[o.sg.path.length - 1];
-      return pic(`data-top="${i}"`, ic(itemIcon({ l: leaf }, t)), o.sg.path.slice(1).join(' · '), typeOf(t.group).h, 'hot');
+      // Libellé court et lisible : le dernier mot-clé (« Côté gauche »), ou « Dos · Forte » pour une intensité.
+      const t = theme(o.sg.theme), p = o.sg.path, leaf = p[p.length - 1];
+      const label = INTENS.some(x => x.l === leaf) && p.length > 2 ? `${p[p.length - 2]} · ${leaf}` : leaf;
+      return pic(`data-top="${i}"`, ic(itemIcon({ l: leaf }, t)), label, typeOf(t.group).h, 'hot');
     }
     return pic(`data-top="${i}"`, ic(itemIcon(o.it, o.t)), o.it.l, typeOf(o.t.group).h, 'hot');
-  }).join('');
-  const shortcuts = pic('data-act="scan"', ic('scan'), 'Tout parcourir', 40) + pic('data-act="spell"', ic('spell'), 'Épeler', 40) + pic('data-act="plan"', ic('plan'), 'Ma journée', 95);
-  const row = (t, h) => {
-    const people = t.dynamic ? peopleOf(t).map(p => pic(`data-person="${esc(p.id)}"`, avatar(p), p.name, h)) : [];
-    const items = ordered(t.items).map(it => pic(`data-item="${esc(it.id)}" data-th="${esc(t.id)}"`, ic(itemIcon(it, t)), it.l, h, it.urgent ? 'urg' : ''));
+  }).join('')}${pic('data-act="scan"', ic('scan'), 'Tout parcourir', 40)}</div>`;
+  const rows = [topRow, ...S.themes.map(t => {
+    const h = typeOf(t.group).h, all = themePics(t, h);
+    const more = all.length > 3 ? pic(`data-act="openTheme" data-th="${esc(t.id)}"`, `<b class="plus">+${all.length - 3}</b>`, 'Voir plus', h, 'more') : '<span></span>';
     return `<div class="trow" style="--h:${h}">
-      <button class="tlab" data-act="themeScan" data-th="${esc(t.id)}" title="Tout le thème en oui / non">${ic(iconFor(t))}<span>${esc(t.label)}</span></button>
-      <div class="pics">${[...people, ...items].join('') || '<span class="muted" style="font-size:12px">Pas encore de questions</span>'}</div></div>`;
-  };
-  const cats = S.types.map(ty => ({ ty, ts: S.themes.filter(t => t.group === ty.id) })).filter(g => g.ts.length)
-    .map(g => `<section class="cat"><h3>${esc(g.ty.name)}</h3>${g.ts.map(t => row(t, g.ty.h)).join('')}</section>`).join('');
-  return `<div class="allwrap"><div class="all">
-    <div class="trow toprow" style="--h:40"><div class="tlab">${ic('star')}<span>Top 3</span></div><div class="pics">${top}<span class="sep"></span>${shortcuts}</div></div>
-    <div class="cats">${cats}</div>
-  </div></div>`;
+      <button class="tlab" data-act="openTheme" data-th="${esc(t.id)}">${ic(iconFor(t))}<span>${esc(t.label)}</span></button>
+      ${all.slice(0, 3).join('')}${'<span></span>'.repeat(Math.max(0, 3 - all.length))}${more}</div>`;
+  }), `<div class="trow" style="--h:40"><div class="tlab">${ic('spell')}<span>Autres</span></div>${pic('data-act="spell"', ic('spell'), 'Épeler', 40)}${pic('data-act="plan"', ic('plan'), 'Ma journée', 95)}${pic('data-act="scan"', ic('scan'), 'Tout parcourir', 40)}<span></span></div>`];
+  const pages = Math.ceil(rows.length / perPage);
+  boardPage = Math.min(boardPage, pages - 1);
+  const shown = rows.slice(boardPage * perPage, (boardPage + 1) * perPage);
+  return `<div class="page"><div class="prows" style="grid-template-rows:repeat(${perPage},minmax(0,1fr))">${shown.join('')}</div>${pager(boardPage, pages, 'prevPage', 'nextPage')}</div>`;
 }
-// Cherche la plus grande échelle (≤ 1) pour laquelle tout l'accueil tient dans la zone visible.
-function fitBoard() {
-  const wrap = $('.allwrap'), all = $('.all'); if (!wrap || !all) return;
-  const fits = z => { all.style.zoom = z; return all.getBoundingClientRect().height <= wrap.clientHeight + 1; };
-  if (fits(1)) return;
-  let lo = 0.3, hi = 1;
-  for (let i = 0; i < 8; i++) { const mid = (lo + hi) / 2; if (fits(mid)) lo = mid; else hi = mid; }
-  all.style.zoom = lo;
+// Page d'un thème : tous ses pictogrammes, en pages si besoin.
+function renderThemePage() {
+  const t = theme(boardTheme), h = typeOf(t.group).h, all = themePics(t, h);
+  const avail = boardSpace(), w = $('#main')?.clientWidth || 360;
+  const cols = w >= 900 ? 5 : w >= 560 ? 4 : 3, rows = Math.max(2, Math.floor((avail - 64 - 56) / (avail > 700 ? 130 : 112)));
+  const per = cols * rows, pages = Math.max(1, Math.ceil(all.length / per));
+  themePage = Math.min(themePage, pages - 1);
+  return `<div class="page">
+    <div class="phead" style="--h:${h}"><button class="btn" data-act="closeTheme">${ic('back')} Thèmes</button><h2>${ic(iconFor(t))} ${esc(t.label)}</h2>
+      <button class="btn sm" data-act="themeScan" data-th="${esc(t.id)}">${ic('scan')} Oui / non</button></div>
+    ${t.private ? `<span class="lockn">${ic('intime')} Rien n’est enregistré</span>` : ''}
+    ${all.length ? `<div class="pgrid" style="grid-template-columns:repeat(${cols},minmax(0,1fr));grid-template-rows:repeat(${rows},minmax(0,1fr))">${all.slice(themePage * per, (themePage + 1) * per).join('')}</div>`
+      : '<p class="empty">Pas encore de questions dans ce thème. Ajoute-les dans l’espace admin, onglet « Ajouter ».</p>'}
+    ${pager(themePage, pages, 'prevTheme', 'nextTheme')}</div>`;
 }
-addEventListener('resize', () => { if (view === 'patient' && F.mode === 'home') fitBoard(); });
+addEventListener('resize', () => { if (view === 'patient' && F.mode === 'home' && S) render(); });
 const crumbs = () => `<div class="crumbs">${F.path.map(p => `<span class="c">${esc(p)}</span>`).join('<span>›</span>')}${F.priv ? `<span class="c lockb">${ic('intime')} Non enregistré</span>` : ''}</div>`;
 function renderQ() {
   const it = cur(), top = F.stack[F.stack.length - 1];
@@ -490,6 +510,10 @@ $('#main').addEventListener('click', e => {
     const a = b.dataset.act;
     if (a === 'scan') startScan(); else if (a === 'spell') startSpell(['Message']); else if (a === 'plan') showPlan();
     else if (a === 'themeScan') startTheme(b.dataset.th);
+    else if (a === 'openTheme') { boardTheme = b.dataset.th; themePage = 0; render(); }
+    else if (a === 'closeTheme') { boardTheme = null; render(); }
+    else if (a === 'nextPage') { boardPage++; render(); } else if (a === 'prevPage') { boardPage = Math.max(0, boardPage - 1); render(); }
+    else if (a === 'nextTheme') { themePage++; render(); } else if (a === 'prevTheme') { themePage = Math.max(0, themePage - 1); render(); }
     else if (a === 'spellctx') startSpell([...F.path]); else if (a === 'reread') speak(F.ask, true);
   }
 });

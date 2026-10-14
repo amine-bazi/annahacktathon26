@@ -85,7 +85,8 @@ anna-vercel/
 
 | Écran | Rôle |
 |---|---|
-| **Accueil** | Tout visible d'un coup, sans clic ni défilement : **Top 3** en tête, puis une ligne par thème (nom et pictogramme du thème à gauche, pictogrammes de ses questions à droite), regroupées par catégorie. L'ensemble est mis à l'échelle pour tenir dans l'écran. Toucher un pictogramme pose la question ; toucher le nom du thème le parcourt en oui / non |
+| **Accueil** | Pensé pour le téléphone que tient la personne en face d'Anna : texte et pictogrammes en grand, sans défilement. Une ligne par thème = le thème, ses **3 pictogrammes les plus importants** (moteur de recommandation) et « + » pour le reste. Le nombre de lignes s'adapte à l'écran ; **Page suivante / Précédente** pour les autres thèmes. Page 1 : **Top 3** puis les besoins essentiels (Boire / manger, Douleur, Position, Toilette) |
+| **Page d'un thème** | Tous les pictogrammes du thème en grand, en pages si besoin ; « Oui / non » parcourt le thème question par question |
 | **Question** | Une question en très grand ; réponse par Oui / Non / Parler (boutons, clavier O/N/P, ou tête) |
 | **Résultat** | Résumé du besoin (« Douleur › Dos › Forte »), alerte si prioritaire, questions « Pour aller plus loin » pour l'entourage |
 | **Échanger** | Anna pose une question ou dit une phrase : affichée en grand et lue à voix haute |

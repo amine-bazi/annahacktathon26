@@ -55,7 +55,7 @@ function freshDb(withExamples) {
   const rows = flattenDefaults(TYPES, THEMES);
   const ex = withExamples ? exampleData(rows.questions) : { history: [], base: {} };
   return {
-    v: 2,
+    v: 3,
     patient: { id: 'demo', display_name: 'Anna', admin_pin: null, daily_plan: DEFAULT_PLAN, settings: { reco: true, sens: 1 } },
     types: rows.types, themes: rows.themes, questions: rows.questions,
     followups: rows.followups.map((f, i) => ({ ...f, id: i + 1 })),
@@ -66,7 +66,7 @@ function freshDb(withExamples) {
 
 export function createDemoBackend({ load = () => null, save = () => {}, withExamples = true } = {}) {
   let db = load();
-  if (!db || db.v !== 2) db = freshDb(withExamples);
+  if (!db || db.v !== 3) db = freshDb(withExamples);
   let session = false;
   let deviceKey = 'demo';
   const persist = () => save(db);

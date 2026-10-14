@@ -199,25 +199,34 @@ code.key{display:block;font-family:var(--mono);font-size:13px;padding:10px;borde
 .rows li>svg{font-size:22px;color:var(--accent)}
 .card h3{display:flex;align-items:center;gap:8px}
 .card h3 svg{font-size:20px;color:var(--accent)}
-/* accueil « tout visible » : une ligne par thème, groupées par catégorie, mise à l'échelle pour tenir dans l'écran */
-.allwrap{height:100%;overflow:auto}
-.all{display:flex;flex-direction:column;gap:8px;padding-bottom:4px}
-.cats{columns:3 300px;column-gap:12px}
-.cat{break-inside:avoid;margin-bottom:8px}
-.cat h3{margin:0 0 4px 2px;font-size:11.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}
-.trow{--tc:hsl(var(--h) 48% var(--tl));display:grid;grid-template-columns:86px minmax(0,1fr);gap:6px;align-items:stretch;padding:5px;margin-bottom:5px;border-radius:14px;border:1px solid color-mix(in srgb,var(--tc) 30%,var(--line));background:color-mix(in srgb,var(--tc) var(--tint),var(--panel));break-inside:avoid}
-.tlab{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;padding:6px 4px;border:none;border-radius:10px;background:transparent;font-size:13px;font-weight:700;line-height:1.15;text-align:center}
+/* accueil téléphone : une ligne par thème (thème + 3 pictogrammes + « + »), en pages */
+.page{height:100%;display:flex;flex-direction:column;gap:8px;min-height:0}
+.prows{flex:1;display:grid;gap:6px;min-height:0}
+.trow{--tc:hsl(var(--h) 48% var(--tl));display:grid;grid-template-columns:minmax(72px,1.1fr) repeat(4,minmax(0,1fr));gap:5px;padding:5px;min-height:0;border-radius:14px;border:1px solid color-mix(in srgb,var(--tc) 30%,var(--line));background:color-mix(in srgb,var(--tc) var(--tint),var(--panel))}
+.tlab{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;padding:4px;border:none;border-radius:10px;background:transparent;font-size:14.5px;font-weight:700;line-height:1.1;text-align:center;min-height:0}
 button.tlab:hover{background:var(--panel)}
-.tlab svg{font-size:28px;color:var(--tc)}
-.pics{display:flex;flex-wrap:wrap;gap:4px;align-content:center}
-.pic{--tc:hsl(var(--h) 48% var(--tl));width:70px;min-height:64px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;padding:5px 3px;border-radius:10px;border:1.5px solid color-mix(in srgb,var(--tc) 30%,var(--line));background:var(--panel);font-size:11.5px;font-weight:700;line-height:1.1;text-align:center;overflow-wrap:anywhere}
+.tlab svg{font-size:30px;color:var(--tc)}
+.pic{--tc:hsl(var(--h) 48% var(--tl));display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;padding:4px 3px;min-width:0;min-height:0;border-radius:11px;border:1.5px solid color-mix(in srgb,var(--tc) 30%,var(--line));background:var(--panel);font-size:14px;font-weight:700;line-height:1.12;color:var(--ink);text-align:center;overflow:hidden}
+.pic span,.tlab span{hyphens:auto;-webkit-hyphens:auto;overflow-wrap:break-word;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;max-width:100%}
 .pic:hover{border-color:var(--tc)}
 .pic:active{transform:scale(.96)}
-.pic>svg{font-size:26px;color:var(--tc)}
-.pic .av{width:28px;height:28px;font-size:13px}
+.pic>svg{font-size:32px;color:var(--tc);flex:none}
+.pic .av{width:30px;height:30px;font-size:14px}
 .pic.urg{border-color:var(--urgent)}
-.pic.hot{width:96px;border-width:2px;border-color:var(--tc)}
-.toprow .pics .sep{width:1px;align-self:stretch;background:var(--line);margin:0 4px}
+.pic.hot{border-width:2px;border-color:var(--tc)}
+.pic.more{background:transparent;border-style:dashed}
+.pic .plus{font-size:20px;color:var(--tc)}
+@media (min-width:720px){.tlab{font-size:17px}.tlab svg,.pic>svg{font-size:38px}.pic{font-size:16px}}
+.pager{display:grid;grid-template-columns:1fr auto 1fr;gap:8px;align-items:center}
+.pager span{font-size:14px;color:var(--muted);font-variant-numeric:tabular-nums}
+.pager .btn{justify-content:center;padding:12px 10px;font-size:15px}
+.pager .btn:last-child{justify-self:end}
+.phead{--tc:hsl(var(--h) 48% var(--tl));display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.phead h2{margin:0;font-size:20px;display:flex;align-items:center;gap:8px;flex:1;min-width:0}
+.phead h2 svg{color:var(--tc);font-size:26px}
+.pgrid{flex:1;display:grid;gap:8px;min-height:0}
+.pgrid .pic{font-size:15px}
+.pgrid .pic>svg{font-size:40px}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 </style>
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
@@ -305,7 +314,7 @@ button.tlab:hover{background:var(--panel)}
   <symbol id="i-cloud" viewBox="0 0 24 24"><path d="M7 18a4 4 0 0 1-.6-7.96A6 6 0 0 1 18 9a4.5 4.5 0 0 1-.5 9H7z"/><path d="M4 4l16 16"/></symbol>
 </svg>
 
-<div class="app" id="app">
+<div class="app" id="app" lang="fr">
   <header class="top" id="top"></header>
   <main class="main" id="main"><p class="muted" style="padding:24px 0">Chargement…</p></main>
   <footer class="bar" id="bar" hidden>
@@ -429,7 +438,57 @@ const TYPES = [
   { id: 'autres', name: 'Autres', short: 'Autres', icon: 'autre', h: 220 },
 ];
 
+// Ordre = ordre d'affichage sur le téléphone : les besoins essentiels d'abord.
 const THEMES = [
+  { id: 'soif', label: 'Boire / manger', type: 'besoins', sub: 'Soif, faim', icon: 'soif', items: [
+    T('Boire', 'Tu veux boire ?', kids([['Eau', 'De l’eau ?'], ['Jus', 'Un jus de fruit ?'], ['Boisson chaude', 'Une boisson chaude (thé, café) ?'], ['Eau gazeuse', 'De l’eau gazeuse ?']])),
+    T('Manger', 'Tu as faim ?', kids([['Collation', 'Une collation ?'], ['Repas', 'C’est pour le repas ?'], ['Sucré', 'Quelque chose de sucré ?'], ['Salé', 'Quelque chose de salé ?']])),
+    T('Bouche sèche', 'Tu as la bouche sèche ?'),
+    T('Nausée', 'Tu as la nausée ?'),
+  ], deeper: ['Avec une paille ?', 'Plutôt frais ?', 'En petite quantité ?', 'Ça passe bien quand tu avales ?', 'Tu veux que je reste pendant que tu bois ?'] },
+  { id: 'douleur', label: 'Douleur', type: 'emotions', sub: 'Où, combien', icon: 'douleur', items: [
+    T('Poitrine', 'Tu as mal à la poitrine ?', '@i', { urgent: true }),
+    T('Tête', 'Tu as mal à la tête ?', '@i'),
+    T('Dos', 'Tu as mal au dos ?', '@i'),
+    T('Ventre', 'Tu as mal au ventre ?', '@i'),
+    T('Gorge / bouche', 'Tu as mal à la gorge ou à la bouche ?', '@i'),
+    T('Bras / mains', 'Tu as mal aux bras ou aux mains ?', '@i'),
+    T('Jambes / pieds', 'Tu as mal aux jambes ou aux pieds ?', '@i'),
+    T('Point d’appui', 'Tu as mal à un point d’appui (fesses, talons, coudes) ?', '@i'),
+  ], deeper: ['C’est une douleur nouvelle ?', 'Ça dure depuis plus d’une heure ?', 'Ça lance ou ça brûle ?', 'Tu veux un antidouleur ?', 'Changer de position pourrait soulager ?', 'C’est pire qu’hier ?'] },
+  { id: 'position', label: 'Position', type: 'besoins', sub: 'Lit, coussin', icon: 'position', items: [
+    T('Changer de position', 'Tu veux changer de position ?', kids([['Côté gauche', 'Sur le côté gauche ?'], ['Côté droit', 'Sur le côté droit ?'], ['Sur le dos', 'Sur le dos ?'], ['Au fauteuil', 'Au fauteuil ?']])),
+    T('Remonter', 'Tu veux qu’on te remonte dans le lit ?'),
+    T('Dossier', 'Tu veux régler le dossier ?', kids([['Plus haut', 'Plus redressée ?'], ['Plus bas', 'Plus allongée ?']])),
+    T('Tête / coussin', 'Il faut ajuster ta tête ou ton coussin ?'),
+    T('Bras / jambe', 'Il faut bouger un bras ou une jambe ?', kids([['Bras gauche', 'Le bras gauche ?'], ['Bras droit', 'Le bras droit ?'], ['Jambe gauche', 'La jambe gauche ?'], ['Jambe droite', 'La jambe droite ?']])),
+    T('Démangeaison', 'Ça te gratte ?', kids([['Visage', 'Au visage ?'], ['Tête', 'Sur la tête ?'], ['Corps', 'Sur le corps ?'], ['Bras / jambes', 'Aux bras ou aux jambes ?']])),
+    T('Drap / vêtement', 'Un drap ou un vêtement te gêne ?'),
+  ], deeper: ['C’est mieux comme ça ?', 'Il faut ajuster encore un peu ?', 'Tu veux rester comme ça plus d’une heure ?', 'Tu veux qu’on repasse vérifier bientôt ?'] },
+  { id: 'hygiene', label: 'Toilette', type: 'besoins', sub: 'Change, aspiration', icon: 'hygiene', items: [
+    T('Change', 'Tu as besoin d’être changée ?'),
+    T('Aspiration', 'Tu as besoin d’une aspiration ?'),
+    T('Yeux', 'Tes yeux te gênent ?'),
+    T('Toilette', 'Tu veux faire ta toilette ?'),
+    T('Dents', 'Tu veux te brosser les dents ?'),
+    T('Coiffure', 'Tu veux être coiffée ?'),
+    T('Mouchage', 'Tu as besoin d’être mouchée ?'),
+  ], deeper: ['Maintenant ?', 'Tu préfères une personne en particulier ?', 'Tu veux que la porte soit fermée ?', 'Tu veux de la musique pendant le soin ?'] },
+  { id: 'emotions', label: 'Émotions', type: 'emotions', sub: 'Comment je me sens', icon: 'emotions', items: [
+    T('Ça va bien', 'Tu te sens bien en ce moment ?'),
+    T('Fatigue', 'Tu te sens fatiguée ?'),
+    T('Inquiétude', 'Tu es inquiète ?', kids([['Ma santé', 'Pour ta santé ?'], ['Mes proches', 'Pour tes proches ?'], ['La suite', 'Pour la suite ?'], ['Une démarche', 'Pour une démarche ou un papier ?']])),
+    T('Tristesse', 'Tu te sens triste ?'),
+    T('Frustration', 'Tu es frustrée ou en colère ?', kids([['Pas comprise', 'Parce qu’on ne te comprend pas ?'], ['Attente', 'À cause de l’attente ?'], ['Un soin', 'À cause d’un soin ?'], ['Autre chose', 'Pour autre chose ?']])),
+    T('Solitude', 'Tu te sens seule ?', kids([['Compagnie', 'Tu veux de la compagnie ?'], ['Appeler un proche', 'Tu veux appeler un proche ?']])),
+    T('Peur', 'Tu as peur ?'),
+    T('Réconfort', 'Tu as besoin de réconfort ?'),
+    T('Me changer les idées', 'Tu veux te changer les idées ?'),
+  ], deeper: ['Tu veux en parler maintenant ?', 'C’est lié à quelque chose d’aujourd’hui ?', 'C’est lié à une personne ?', 'Ça dure depuis plusieurs jours ?', 'Tu veux voir la psychologue ?', 'Tu veux que je reste un moment ?', 'Tu veux que je prévienne un proche ?'] },
+  { id: 'temp', label: 'Chaud / froid', type: 'besoins', sub: 'Température', icon: 'temp', items: [
+    T('Chaud', 'Tu as trop chaud ?', kids([['Retirer une couverture', 'On retire une couverture ?'], ['Aérer', 'On aère ou on met le ventilateur ?'], ['Linge frais', 'Tu veux un linge frais ?']])),
+    T('Froid', 'Tu as froid ?', kids([['Couverture', 'On ajoute une couverture ?'], ['Fenêtre', 'On ferme la fenêtre ?'], ['Gilet / chaussettes', 'Tu veux un gilet ou des chaussettes ?']])),
+  ], deeper: ['C’est mieux maintenant ?', 'C’est surtout les mains ou les pieds ?', 'Tu veux qu’on prenne ta température ?'] },
   { id: 'interaction', label: 'Poser une question', type: 'interaction', sub: 'Anna demande à quelqu’un', icon: 'interaction', items: [
     A('Ça va ?', 'Comment ça va ?'),
     A('Ta journée', 'Qu’est-ce que tu as fait aujourd’hui ?'),
@@ -459,65 +518,16 @@ const THEMES = [
     D('Au revoir', 'Au revoir, à bientôt.'),
     T('Autre chose', 'Tu veux épeler ce que tu veux dire ?', null, { action: 'spell' }),
   ], deeper: ['Tu veux ajouter quelque chose ?', 'Tu veux le dire à quelqu’un d’autre aussi ?'] },
-  { id: 'soif', label: 'Boire / manger', type: 'besoins', sub: 'Soif, faim', icon: 'soif', items: [
-    T('Boire', 'Tu veux boire ?', kids([['Eau', 'De l’eau ?'], ['Jus', 'Un jus de fruit ?'], ['Boisson chaude', 'Une boisson chaude (thé, café) ?'], ['Eau gazeuse', 'De l’eau gazeuse ?']])),
-    T('Manger', 'Tu as faim ?', kids([['Collation', 'Une collation ?'], ['Repas', 'C’est pour le repas ?'], ['Sucré', 'Quelque chose de sucré ?'], ['Salé', 'Quelque chose de salé ?']])),
-    T('Bouche sèche', 'Tu as la bouche sèche ?'),
-    T('Nausée', 'Tu as la nausée ?'),
-  ], deeper: ['Avec une paille ?', 'Plutôt frais ?', 'En petite quantité ?', 'Ça passe bien quand tu avales ?', 'Tu veux que je reste pendant que tu bois ?'] },
-  { id: 'hygiene', label: 'Toilette', type: 'besoins', sub: 'Change, aspiration', icon: 'hygiene', items: [
-    T('Change', 'Tu as besoin d’être changée ?'),
-    T('Aspiration', 'Tu as besoin d’une aspiration ?'),
-    T('Yeux', 'Tes yeux te gênent ?'),
-    T('Toilette', 'Tu veux faire ta toilette ?'),
-    T('Dents', 'Tu veux te brosser les dents ?'),
-    T('Coiffure', 'Tu veux être coiffée ?'),
-    T('Mouchage', 'Tu as besoin d’être mouchée ?'),
-  ], deeper: ['Maintenant ?', 'Tu préfères une personne en particulier ?', 'Tu veux que la porte soit fermée ?', 'Tu veux de la musique pendant le soin ?'] },
-  { id: 'position', label: 'Position', type: 'besoins', sub: 'Lit, coussin', icon: 'position', items: [
-    T('Changer de position', 'Tu veux changer de position ?', kids([['Côté gauche', 'Sur le côté gauche ?'], ['Côté droit', 'Sur le côté droit ?'], ['Sur le dos', 'Sur le dos ?'], ['Au fauteuil', 'Au fauteuil ?']])),
-    T('Remonter', 'Tu veux qu’on te remonte dans le lit ?'),
-    T('Dossier', 'Tu veux régler le dossier ?', kids([['Plus haut', 'Plus redressée ?'], ['Plus bas', 'Plus allongée ?']])),
-    T('Tête / coussin', 'Il faut ajuster ta tête ou ton coussin ?'),
-    T('Bras / jambe', 'Il faut bouger un bras ou une jambe ?', kids([['Bras gauche', 'Le bras gauche ?'], ['Bras droit', 'Le bras droit ?'], ['Jambe gauche', 'La jambe gauche ?'], ['Jambe droite', 'La jambe droite ?']])),
-    T('Démangeaison', 'Ça te gratte ?', kids([['Visage', 'Au visage ?'], ['Tête', 'Sur la tête ?'], ['Corps', 'Sur le corps ?'], ['Bras / jambes', 'Aux bras ou aux jambes ?']])),
-    T('Drap / vêtement', 'Un drap ou un vêtement te gêne ?'),
-  ], deeper: ['C’est mieux comme ça ?', 'Il faut ajuster encore un peu ?', 'Tu veux rester comme ça plus d’une heure ?', 'Tu veux qu’on repasse vérifier bientôt ?'] },
-  { id: 'temp', label: 'Chaud / froid', type: 'besoins', sub: 'Température', icon: 'temp', items: [
-    T('Chaud', 'Tu as trop chaud ?', kids([['Retirer une couverture', 'On retire une couverture ?'], ['Aérer', 'On aère ou on met le ventilateur ?'], ['Linge frais', 'Tu veux un linge frais ?']])),
-    T('Froid', 'Tu as froid ?', kids([['Couverture', 'On ajoute une couverture ?'], ['Fenêtre', 'On ferme la fenêtre ?'], ['Gilet / chaussettes', 'Tu veux un gilet ou des chaussettes ?']])),
-  ], deeper: ['C’est mieux maintenant ?', 'C’est surtout les mains ou les pieds ?', 'Tu veux qu’on prenne ta température ?'] },
-  { id: 'douleur', label: 'Douleur', type: 'emotions', sub: 'Où, combien', icon: 'douleur', items: [
-    T('Poitrine', 'Tu as mal à la poitrine ?', '@i', { urgent: true }),
-    T('Tête', 'Tu as mal à la tête ?', '@i'),
-    T('Dos', 'Tu as mal au dos ?', '@i'),
-    T('Ventre', 'Tu as mal au ventre ?', '@i'),
-    T('Gorge / bouche', 'Tu as mal à la gorge ou à la bouche ?', '@i'),
-    T('Bras / mains', 'Tu as mal aux bras ou aux mains ?', '@i'),
-    T('Jambes / pieds', 'Tu as mal aux jambes ou aux pieds ?', '@i'),
-    T('Point d’appui', 'Tu as mal à un point d’appui (fesses, talons, coudes) ?', '@i'),
-  ], deeper: ['C’est une douleur nouvelle ?', 'Ça dure depuis plus d’une heure ?', 'Ça lance ou ça brûle ?', 'Tu veux un antidouleur ?', 'Changer de position pourrait soulager ?', 'C’est pire qu’hier ?'] },
-  { id: 'emotions', label: 'Émotions', type: 'emotions', sub: 'Comment je me sens', icon: 'emotions', items: [
-    T('Ça va bien', 'Tu te sens bien en ce moment ?'),
-    T('Fatigue', 'Tu te sens fatiguée ?'),
-    T('Inquiétude', 'Tu es inquiète ?', kids([['Ma santé', 'Pour ta santé ?'], ['Mes proches', 'Pour tes proches ?'], ['La suite', 'Pour la suite ?'], ['Une démarche', 'Pour une démarche ou un papier ?']])),
-    T('Tristesse', 'Tu te sens triste ?'),
-    T('Frustration', 'Tu es frustrée ou en colère ?', kids([['Pas comprise', 'Parce qu’on ne te comprend pas ?'], ['Attente', 'À cause de l’attente ?'], ['Un soin', 'À cause d’un soin ?'], ['Autre chose', 'Pour autre chose ?']])),
-    T('Solitude', 'Tu te sens seule ?', kids([['Compagnie', 'Tu veux de la compagnie ?'], ['Appeler un proche', 'Tu veux appeler un proche ?']])),
-    T('Peur', 'Tu as peur ?'),
-    T('Réconfort', 'Tu as besoin de réconfort ?'),
-    T('Me changer les idées', 'Tu veux te changer les idées ?'),
-  ], deeper: ['Tu veux en parler maintenant ?', 'C’est lié à quelque chose d’aujourd’hui ?', 'C’est lié à une personne ?', 'Ça dure depuis plusieurs jours ?', 'Tu veux voir la psychologue ?', 'Tu veux que je reste un moment ?', 'Tu veux que je prévienne un proche ?'] },
-  { id: 'personnes', label: 'Personnes', type: 'personnes', sub: 'Équipe, rencontres', icon: 'personnes', peopleKinds: ['Équipe', 'Rencontres'], items: [
-    T('Quelqu’un d’autre', 'C’est à propos de quelqu’un d’autre ?', null, { action: 'spell' }),
-    T('Nouvelle rencontre', 'Tu as rencontré quelqu’un de nouveau ?'),
-  ], deeper: ['Tu as envie de revoir cette personne ?', 'Cette rencontre t’a fait plaisir ?', 'Tu veux que je lui transmette quelque chose ?', 'Il y a eu un malentendu ?', 'Tu veux en parler à l’équipe ?'] },
   { id: 'proches', label: 'Proches', type: 'proches', sub: 'Famille et amis', icon: 'proches', peopleKinds: ['Proches'], items: [
     T('Quelqu’un d’autre', 'C’est à propos d’un autre proche ?', null, { action: 'spell' }),
     T('Visite', 'C’est à propos d’une visite ?', kids([['Savoir quand', 'Tu veux savoir quand ?'], ['Pas aujourd’hui', 'Tu préfères pas de visite aujourd’hui ?'], ['Plus longue', 'Tu veux une visite plus longue ?']])),
     T('Photos / vidéos', 'Tu veux voir des photos ou des vidéos de tes proches ?'),
     T('Événement familial', 'C’est à propos d’un événement familial ?'),
   ], deeper: ['Cette personne te manque ?', 'Tu veux qu’elle vienne bientôt ?', 'C’est une bonne nouvelle ?', 'Quelque chose t’inquiète à son sujet ?', 'Tu veux lui transmettre un message ?', 'Tu veux que je l’appelle pour toi ?'] },
+  { id: 'personnes', label: 'Personnes', type: 'personnes', sub: 'Équipe, rencontres', icon: 'personnes', peopleKinds: ['Équipe', 'Rencontres'], items: [
+    T('Quelqu’un d’autre', 'C’est à propos de quelqu’un d’autre ?', null, { action: 'spell' }),
+    T('Nouvelle rencontre', 'Tu as rencontré quelqu’un de nouveau ?'),
+  ], deeper: ['Tu as envie de revoir cette personne ?', 'Cette rencontre t’a fait plaisir ?', 'Tu veux que je lui transmette quelque chose ?', 'Il y a eu un malentendu ?', 'Tu veux en parler à l’équipe ?'] },
   { id: 'passerelle', label: 'La Passerelle', type: 'centre', sub: 'Équipe, matériel', icon: 'passerelle', items: [
     T('Voir un soignant', 'Tu veux voir quelqu’un de l’équipe ?', kids([['Infirmière', 'Une infirmière ?'], ['Aide-soignante', 'Une aide-soignante ?'], ['Médecin', 'Le médecin ?'], ['Kiné', 'Le kiné ?'], ['Ergothérapeute', 'L’ergothérapeute ?'], ['Psychologue', 'La psychologue ?'], ['Orthophoniste', 'L’orthophoniste ?']])),
     T('Rendez-vous', 'Tu as une question sur un rendez-vous ?'),
@@ -638,7 +648,7 @@ function freshDb(withExamples) {
   const rows = flattenDefaults(TYPES, THEMES);
   const ex = withExamples ? exampleData(rows.questions) : { history: [], base: {} };
   return {
-    v: 2,
+    v: 3,
     patient: { id: 'demo', display_name: 'Anna', admin_pin: null, daily_plan: DEFAULT_PLAN, settings: { reco: true, sens: 1 } },
     types: rows.types, themes: rows.themes, questions: rows.questions,
     followups: rows.followups.map((f, i) => ({ ...f, id: i + 1 })),
@@ -649,7 +659,7 @@ function freshDb(withExamples) {
 
 function createDemoBackend({ load = () => null, save = () => {}, withExamples = true } = {}) {
   let db = load();
-  if (!db || db.v !== 2) db = freshDb(withExamples);
+  if (!db || db.v !== 3) db = freshDb(withExamples);
   let session = false;
   let deviceKey = 'demo';
   const persist = () => save(db);
@@ -1266,7 +1276,6 @@ function render() {
   if (view === 'admin') { m.innerHTML = renderAdmin(); bindAdmin(); return; }
   m.innerHTML = F.mode === 'home' ? renderBoard() : F.mode === 'q' ? renderQ() : F.mode === 'done' ? renderDone() : F.mode === 'deeper' ? renderDeeper() : renderSpell();
   m.scrollTop = 0;
-  if (F.mode === 'home') fitBoard();
 }
 function renderTop() {
   const now = new Date(), nav = view === 'patient' && F.mode !== 'home';
@@ -1288,44 +1297,65 @@ function renderSync() {
   el.innerHTML = outbox.length && !DEMO ? `<span class="sync" title="Réponses gardées sur la tablette, envoyées dès le retour du réseau">${ic('cloud')} ${outbox.length} en attente</span>` : '';
 }
 
-// Accueil : tout est visible d'un coup, sans clic ni défilement. Une ligne par thème
-// (nom et pictogramme du thème à gauche, pictogrammes de ses questions à droite), groupées par catégorie,
-// avec le Top 3 en tête. L'ensemble est mis à l'échelle pour tenir dans l'écran (fitBoard).
+// Accueil pensé pour le téléphone, sans surcharge et sans défilement :
+// une ligne par thème = le thème, ses 3 pictogrammes les plus importants (moteur de recommandation)
+// et « + » pour le reste. Autant de lignes que l'écran en permet, puis Page suivante / Page précédente.
+let boardPage = 0, boardTheme = null, themePage = 0;
+const pic = (attrs, icon, label, h, extra = '') => `<button class="pic ${extra}" style="--h:${h}" ${attrs}>${icon}<span>${esc(label)}</span></button>`;
+const pager = (page, pages, prev, next) => pages > 1 ? `<nav class="pager" aria-label="Pages">
+    <button class="btn" data-act="${prev}" ${page === 0 ? 'disabled' : ''}>${ic('gauche')} Précédente</button>
+    <span>Page ${page + 1} / ${pages}</span>
+    <button class="btn" data-act="${next}" ${page >= pages - 1 ? 'disabled' : ''}>Suivante ${ic('droite')}</button></nav>` : '';
+// Pictogrammes d'un thème, les plus importants d'abord : personnes (thèmes Proches / Personnes) puis questions.
+function themePics(t, h) {
+  const people = t.dynamic ? ordered(peopleOf(t).map(p => personItem(t, p))).map(it => { const p = S.people.find(x => x.id === it.person); return pic(`data-person="${esc(p.id)}"`, avatar(p), p.name, h); }) : [];
+  const items = ordered(t.items).map(it => pic(`data-item="${esc(it.id)}" data-th="${esc(t.id)}"`, ic(itemIcon(it, t)), it.l, h, it.urgent ? 'urg' : ''));
+  return [...people, ...items];
+}
+function boardSpace() { return Math.max(320, ($('#main')?.clientHeight || 600) - 24); }
 function renderBoard() {
+  if (boardTheme && theme(boardTheme)) return renderThemePage();
+  boardTheme = null;
+  const avail = boardSpace(), rowH = avail > 700 ? 124 : 104;   // lignes hautes : lisibles par la personne qui tient le téléphone
+  const perPage = Math.max(3, Math.floor((avail - 64) / rowH));   // 64 = barre de pages
   topCache = top3();
-  const pic = (attrs, icon, label, h, extra = '') => `<button class="pic ${extra}" style="--h:${h}" ${attrs}>${icon}<span>${esc(label)}</span></button>`;
-  const top = topCache.map((o, i) => {
+  const topRow = `<div class="trow toprow" style="--h:40"><div class="tlab">${ic('star')}<span>Top 3</span></div>${topCache.map((o, i) => {
     if (o.kind === 'sugg') {
-      const t = theme(o.sg.theme), leaf = o.sg.path[o.sg.path.length - 1];
-      return pic(`data-top="${i}"`, ic(itemIcon({ l: leaf }, t)), o.sg.path.slice(1).join(' · '), typeOf(t.group).h, 'hot');
+      // Libellé court et lisible : le dernier mot-clé (« Côté gauche »), ou « Dos · Forte » pour une intensité.
+      const t = theme(o.sg.theme), p = o.sg.path, leaf = p[p.length - 1];
+      const label = INTENS.some(x => x.l === leaf) && p.length > 2 ? `${p[p.length - 2]} · ${leaf}` : leaf;
+      return pic(`data-top="${i}"`, ic(itemIcon({ l: leaf }, t)), label, typeOf(t.group).h, 'hot');
     }
     return pic(`data-top="${i}"`, ic(itemIcon(o.it, o.t)), o.it.l, typeOf(o.t.group).h, 'hot');
-  }).join('');
-  const shortcuts = pic('data-act="scan"', ic('scan'), 'Tout parcourir', 40) + pic('data-act="spell"', ic('spell'), 'Épeler', 40) + pic('data-act="plan"', ic('plan'), 'Ma journée', 95);
-  const row = (t, h) => {
-    const people = t.dynamic ? peopleOf(t).map(p => pic(`data-person="${esc(p.id)}"`, avatar(p), p.name, h)) : [];
-    const items = ordered(t.items).map(it => pic(`data-item="${esc(it.id)}" data-th="${esc(t.id)}"`, ic(itemIcon(it, t)), it.l, h, it.urgent ? 'urg' : ''));
+  }).join('')}${pic('data-act="scan"', ic('scan'), 'Tout parcourir', 40)}</div>`;
+  const rows = [topRow, ...S.themes.map(t => {
+    const h = typeOf(t.group).h, all = themePics(t, h);
+    const more = all.length > 3 ? pic(`data-act="openTheme" data-th="${esc(t.id)}"`, `<b class="plus">+${all.length - 3}</b>`, 'Voir plus', h, 'more') : '<span></span>';
     return `<div class="trow" style="--h:${h}">
-      <button class="tlab" data-act="themeScan" data-th="${esc(t.id)}" title="Tout le thème en oui / non">${ic(iconFor(t))}<span>${esc(t.label)}</span></button>
-      <div class="pics">${[...people, ...items].join('') || '<span class="muted" style="font-size:12px">Pas encore de questions</span>'}</div></div>`;
-  };
-  const cats = S.types.map(ty => ({ ty, ts: S.themes.filter(t => t.group === ty.id) })).filter(g => g.ts.length)
-    .map(g => `<section class="cat"><h3>${esc(g.ty.name)}</h3>${g.ts.map(t => row(t, g.ty.h)).join('')}</section>`).join('');
-  return `<div class="allwrap"><div class="all">
-    <div class="trow toprow" style="--h:40"><div class="tlab">${ic('star')}<span>Top 3</span></div><div class="pics">${top}<span class="sep"></span>${shortcuts}</div></div>
-    <div class="cats">${cats}</div>
-  </div></div>`;
+      <button class="tlab" data-act="openTheme" data-th="${esc(t.id)}">${ic(iconFor(t))}<span>${esc(t.label)}</span></button>
+      ${all.slice(0, 3).join('')}${'<span></span>'.repeat(Math.max(0, 3 - all.length))}${more}</div>`;
+  }), `<div class="trow" style="--h:40"><div class="tlab">${ic('spell')}<span>Autres</span></div>${pic('data-act="spell"', ic('spell'), 'Épeler', 40)}${pic('data-act="plan"', ic('plan'), 'Ma journée', 95)}${pic('data-act="scan"', ic('scan'), 'Tout parcourir', 40)}<span></span></div>`];
+  const pages = Math.ceil(rows.length / perPage);
+  boardPage = Math.min(boardPage, pages - 1);
+  const shown = rows.slice(boardPage * perPage, (boardPage + 1) * perPage);
+  return `<div class="page"><div class="prows" style="grid-template-rows:repeat(${perPage},minmax(0,1fr))">${shown.join('')}</div>${pager(boardPage, pages, 'prevPage', 'nextPage')}</div>`;
 }
-// Cherche la plus grande échelle (≤ 1) pour laquelle tout l'accueil tient dans la zone visible.
-function fitBoard() {
-  const wrap = $('.allwrap'), all = $('.all'); if (!wrap || !all) return;
-  const fits = z => { all.style.zoom = z; return all.getBoundingClientRect().height <= wrap.clientHeight + 1; };
-  if (fits(1)) return;
-  let lo = 0.3, hi = 1;
-  for (let i = 0; i < 8; i++) { const mid = (lo + hi) / 2; if (fits(mid)) lo = mid; else hi = mid; }
-  all.style.zoom = lo;
+// Page d'un thème : tous ses pictogrammes, en pages si besoin.
+function renderThemePage() {
+  const t = theme(boardTheme), h = typeOf(t.group).h, all = themePics(t, h);
+  const avail = boardSpace(), w = $('#main')?.clientWidth || 360;
+  const cols = w >= 900 ? 5 : w >= 560 ? 4 : 3, rows = Math.max(2, Math.floor((avail - 64 - 56) / (avail > 700 ? 130 : 112)));
+  const per = cols * rows, pages = Math.max(1, Math.ceil(all.length / per));
+  themePage = Math.min(themePage, pages - 1);
+  return `<div class="page">
+    <div class="phead" style="--h:${h}"><button class="btn" data-act="closeTheme">${ic('back')} Thèmes</button><h2>${ic(iconFor(t))} ${esc(t.label)}</h2>
+      <button class="btn sm" data-act="themeScan" data-th="${esc(t.id)}">${ic('scan')} Oui / non</button></div>
+    ${t.private ? `<span class="lockn">${ic('intime')} Rien n’est enregistré</span>` : ''}
+    ${all.length ? `<div class="pgrid" style="grid-template-columns:repeat(${cols},minmax(0,1fr));grid-template-rows:repeat(${rows},minmax(0,1fr))">${all.slice(themePage * per, (themePage + 1) * per).join('')}</div>`
+      : '<p class="empty">Pas encore de questions dans ce thème. Ajoute-les dans l’espace admin, onglet « Ajouter ».</p>'}
+    ${pager(themePage, pages, 'prevTheme', 'nextTheme')}</div>`;
 }
-addEventListener('resize', () => { if (view === 'patient' && F.mode === 'home') fitBoard(); });
+addEventListener('resize', () => { if (view === 'patient' && F.mode === 'home' && S) render(); });
 const crumbs = () => `<div class="crumbs">${F.path.map(p => `<span class="c">${esc(p)}</span>`).join('<span>›</span>')}${F.priv ? `<span class="c lockb">${ic('intime')} Non enregistré</span>` : ''}</div>`;
 function renderQ() {
   const it = cur(), top = F.stack[F.stack.length - 1];
@@ -1382,6 +1412,10 @@ $('#main').addEventListener('click', e => {
     const a = b.dataset.act;
     if (a === 'scan') startScan(); else if (a === 'spell') startSpell(['Message']); else if (a === 'plan') showPlan();
     else if (a === 'themeScan') startTheme(b.dataset.th);
+    else if (a === 'openTheme') { boardTheme = b.dataset.th; themePage = 0; render(); }
+    else if (a === 'closeTheme') { boardTheme = null; render(); }
+    else if (a === 'nextPage') { boardPage++; render(); } else if (a === 'prevPage') { boardPage = Math.max(0, boardPage - 1); render(); }
+    else if (a === 'nextTheme') { themePage++; render(); } else if (a === 'prevTheme') { themePage = Math.max(0, themePage - 1); render(); }
     else if (a === 'spellctx') startSpell([...F.path]); else if (a === 'reread') speak(F.ask, true);
   }
 });
