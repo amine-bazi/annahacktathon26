@@ -250,12 +250,13 @@ function showPlan() { F = { mode: 'done', theme: 'journee', path: ['Ma journée'
 function showQ() { F.qTs = Date.now(); render(); speak(cur().q); }
 
 function answer(a) {
+  // Sur l'accueil, ni boutons ni caméra : oui / non / parler ne servent qu'à répondre aux questions.
+  if (F.mode === 'home') return;
   flash(a);
   if ($('#ovRoot').firstChild) { if (a === 'parler') return; closeOv(); }
   if (a === 'parler') return talk();
   if (view !== 'patient') return;
   sayAnswer(a);
-  if (F.mode === 'home') { if (a === 'oui') startScan(); return; }
   if (F.mode === 'spell') return spellAnswer(a);
   if (F.mode === 'deeper') {
     F.entryNotes.push([F.dq, a]);
@@ -369,7 +370,7 @@ function render() {
   if (!S) return;
   renderTop();
   const m = $('#main');
-  $('#bar').hidden = view !== 'patient';
+  $('#bar').hidden = view !== 'patient' || F.mode === 'home';
   m.classList.toggle('board-mode', view === 'patient' && F.mode === 'home');
   if (view === 'admin') { m.innerHTML = renderAdmin(); bindAdmin(); return; }
   m.innerHTML = F.mode === 'home' ? renderBoard() : F.mode === 'q' ? renderQ() : F.mode === 'done' ? renderDone() : F.mode === 'deeper' ? renderDeeper() : renderSpell();
@@ -521,7 +522,7 @@ $('#bYes').onclick = () => answer('oui');
 $('#bNo').onclick = () => answer('non');
 $('#bTalk').onclick = () => answer('parler');
 document.addEventListener('keydown', e => {
-  if (!S || e.target.matches('input,textarea,select')) return;
+  if (!S || e.target.closest?.('input,textarea,select')) return;
   const k = e.key.toLowerCase();
   if (k === 'o' || k === 'arrowleft') answer('oui');
   else if (k === 'n' || k === 'arrowright') answer('non');
