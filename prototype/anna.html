@@ -254,6 +254,11 @@ img.av{object-fit:cover;background:var(--panel-2)}
 .who .pill{margin-left:8px;vertical-align:middle}
 .ovc.cs{max-width:600px}.ovc.cs .fgrid{max-height:min(52vh,520px);overflow:auto;padding-right:4px}
 .csState{font-weight:700;padding:8px 12px;border-radius:10px;background:var(--panel-2)}.csState[data-etat="oui"]{color:var(--yes)}.csState[data-etat="non"]{color:var(--no)}
+.qwait{display:flex;align-items:center;gap:10px;font-size:13px;color:var(--muted);margin-top:4px}
+.qwait i{flex:1;display:block;height:6px;border-radius:3px;background:var(--panel-2);position:relative;overflow:hidden}
+.qwait i::after{content:"";position:absolute;inset:0;background:var(--accent);transform-origin:left;animation:qwait var(--d,1.5s) linear var(--e,0s) forwards}
+.qwait span{display:inline-flex;align-items:center;gap:4px;white-space:nowrap}
+@keyframes qwait{from{transform:scaleX(1)}to{transform:scaleX(0)}}
 </style>
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
   <symbol id="i-douleur" viewBox="0 0 24 24"><path d="M13 2 4 14h7l-1 8 9-12h-7l1-8z"/></symbol>
@@ -385,6 +390,7 @@ function normalizeSettings(s) {
     cam: s.cam === 'user' ? 'user' : 'environment',     // caméra avant ou arrière
     mode: s.mode === 'auto' ? 'auto' : 'classique',     // classique (une personne touche l'écran) ou automatisé (caméra)
     hold: num(s.hold, 0.3, 2, 0.6),                     // temps de détection (s) : durée pendant laquelle la tête reste tournée
+    delai: num(s.delai, 0, 5, 1.5),                     // temporisation (s) : juste après une question, la tête n'est pas prise en compte
     calib: num(s.calib, 0.5, 3, 1),                     // durée de calibration de la position de repos (s)
     recal: s.recal !== false,                           // recalibrer au début de chaque enchaînement (mode automatisé)
     autoRepeat: num(s.autoRepeat, 5, 60, 20),           // mode automatisé : rappel de la question si pas de réponse (s)
@@ -1145,8 +1151,8 @@ const AUTO_DONE_S = 10;   // secondes d'affichage du résumé avant de passer au
 const auto = { timer: 0, reminders: 0, visited: new Set() };
 // Réglages caméra de cet appareil (bouton « Réglages » en haut) : ils remplacent ceux d'Anna (espace admin)
 // sur cet appareil seulement, car la caméra, sa position et la lumière changent d'un appareil à l'autre.
-const CAM_KEYS = ['mode', 'hold', 'sens', 'seuil', 'calib', 'recal', 'swap', 'cam'];
-const CAM_BOUNDS = { hold: [0.3, 2], sens: [0.5, 1.6], seuil: [0.4, 0.9], calib: [0.5, 3] };
+const CAM_KEYS = ['mode', 'hold', 'delai', 'sens', 'seuil', 'calib', 'recal', 'swap', 'cam'];
+const CAM_BOUNDS = { hold: [0.3, 2], delai: [0, 5], sens: [0.5, 1.6], seuil: [0.4, 0.9], calib: [0.5, 3] };
 let camLocal = store.get(K_CAM, {});
 function cfg() { const out = { ...(S?.settings || {}) }; for (const k of CAM_KEYS) if (camLocal[k] !== undefined) out[k] = camLocal[k]; return out; }
 const hasLocalCam = () => CAM_KEYS.some(k => camLocal[k] !== undefined);
@@ -1335,10 +1341,10 @@ function showQ() { F.qTs = Date.now(); render(); speak(cur().q, isAuto()); autoW
 // Ouverture en deux questions : « Coucou, est-ce que tu veux parler ? » puis « Ça va ? ».
 const INTRO = ['hello', 'welcome', 'rest'];
 function showHello() {
-  F = { mode: 'hello' }; undo = []; render(); speak('Coucou, est-ce que tu veux parler ?', isAuto());
+  F = { mode: 'hello', qTs: Date.now() }; undo = []; render(); speak('Coucou, est-ce que tu veux parler ?', isAuto());
   if (isAuto()) { auto.visited.clear(); if (cfg().recal && tracker.running) tracker.recalibrate(); autoWatch('Coucou, est-ce que tu veux parler ?'); }
 }
-function showWelcome() { F = { mode: 'welcome' }; undo = []; render(); speak(`${name()}, ça va ?`, isAuto()); autoWatch(`${name()}, ça va ?`); }
+function showWelcome() { F = { mode: 'welcome', qTs: Date.now() }; undo = []; render(); speak(`${name()}, ça va ?`, isAuto()); autoWatch(`${name()}, ça va ?`); }
 
 // Mode automatisé : si Anna ne répond pas, la question est répétée (deux fois), puis on fait une pause.
 function autoWatch(text) { if (!isAuto()) return; auto.reminders = 0; autoArm(() => autoRemind(text), cfg().autoRepeat); }
@@ -1349,7 +1355,7 @@ function autoRemind(text) {
 }
 // Pause : écran calme, puis on redemande « Tu veux parler ? » après le délai de reprise (ou dès un « oui »).
 function autoRest(phrase) {
-  auto.visited.clear(); F = { mode: 'rest' }; undo = []; render();
+  auto.visited.clear(); F = { mode: 'rest', qTs: Date.now() }; undo = []; render();
   if (phrase) speak(phrase, true);
   autoArm(showHello, cfg().autoPause);
 }
@@ -1367,7 +1373,7 @@ function answer(a) {
       record(newEntry('accueil', ['Tu veux parler ?', a === 'oui' ? 'Oui' : 'Non'], 'resolu'));
       if (a === 'oui') return showWelcome();
       if (isAuto()) return autoRest();
-      F = { mode: 'rest' }; return render();
+      F = { mode: 'rest', qTs: Date.now() }; return render();
     }
     mood = a === 'oui' ? 'ok' : 'ko';
     record(newEntry('accueil', ['Ça va ?', a === 'oui' ? 'Oui' : 'Non'], 'resolu'));
@@ -1420,7 +1426,7 @@ function newEntry(theme, path, result, extra = {}) {
   return { id, ts: Date.now(), theme, path, result, n: 0, dur: 0, urgent: false, notes: [], ...extra };
 }
 function conclude(result, it) {
-  Object.assign(F, { mode: 'done', result, action: it?.action, ask: it?.ask, say: it?.say, entryNotes: [] });
+  Object.assign(F, { mode: 'done', result, action: it?.action, ask: it?.ask, say: it?.say, entryNotes: [], qTs: Date.now() });
   F.entry = null;
   if (!F.priv && F.theme !== 'scan') {
     F.entry = newEntry(F.theme, F.path.slice(), result, { n: F.asked.length, dur: Date.now() - F.t0, urgent: !!F.urgent });
@@ -1584,7 +1590,7 @@ function renderHello() {
   return `<div class="welcome">
     <p class="tag">${esc(name())}</p>
     <h1 class="q hello">Coucou, est-ce que tu veux parler ?</h1>
-    <p class="muted">${GESTURES}</p>${autoLine()}
+    <p class="muted">${GESTURES}</p>${autoLine()}${waitBar()}
     <div class="wbtns">
       <button class="wb no" data-act="hNon">${ic('calme')}<span>Non, pas maintenant</span></button>
       <button class="wb yes" data-act="hOui">${ic('talk')}<span>Oui, je veux parler</span></button>
@@ -1605,7 +1611,7 @@ function renderWelcome() {
   return `<div class="welcome">
     <p class="tag">${esc(name())}</p>
     <h1 class="q">Ça va ?</h1>
-    <p class="muted">${GESTURES}</p>${autoLine()}
+    <p class="muted">${GESTURES}</p>${autoLine()}${waitBar()}
     <div class="wbtns">
       <button class="wb no" data-act="wNon">${ic('triste')}<span>Non, ça ne va pas</span></button>
       <button class="wb yes" data-act="wOui">${ic('content')}<span>Oui, ça va</span></button>
@@ -1633,7 +1639,7 @@ const crumbs = () => `<div class="crumbs">${F.path.map(p => `<span class="c">${e
 function renderQ() {
   const it = cur(), top = F.stack[F.stack.length - 1];
   return `<div class="qv">${crumbs()}
-    <h1 class="q">${esc(it.q)}</h1>
+    <h1 class="q">${esc(it.q)}</h1>${waitBar()}
     <div class="qmeta">${top.list.length > 1 ? `<span>${top.idx + 1} / ${top.list.length}</span>` : ''}${it.urgent ? '<span class="pill u">Prioritaire</span>' : ''}<span>${GESTURES}</span></div>
   </div>`;
 }
@@ -1655,7 +1661,7 @@ function renderDone() {
       ${plan}${time}
       ${F.result === 'non-trouve' ? `<div><button class="btn primary" data-act="spellctx">${ic('spell')} Épeler avec ${esc(name())}</button></div>` : ''}
       ${F.entryNotes.length ? `<ul class="notes">${F.entryNotes.map(([q, a]) => `<li><span>${esc(q)}</span><span class="${a === 'oui' ? 'ans-y' : 'ans-n'}">${a === 'oui' ? 'Oui' : 'Non'}</span></li>`).join('')}</ul>` : ''}
-      <p class="next">Autre chose, ${esc(name())} ?</p>
+      <p class="next">Autre chose, ${esc(name())} ?</p>${waitBar()}
       <span class="muted" style="font-size:13.5px">${isAuto() ? 'Oui : continuer dans ce thème · Non : thème suivant · sinon la suite arrive toute seule' : 'Oui : continuer dans ce thème · Non : accueil'}</span>
     </div>
     ${dl.length ? `<div class="deeper"><h3>${ic('deeper')} Pour aller plus loin</h3>
@@ -1871,6 +1877,7 @@ function admSettings() {
         <p class="muted" style="margin:0;font-size:14px">${GESTURES}.</p>
         ${hasLocalCam() ? '<p class="muted" style="margin:0;font-size:13.5px">Cet appareil utilise ses propres réglages caméra, modifiables avec le bouton « Réglages » en haut de l’écran. Les valeurs ci-dessous sont celles d’Anna, pour les autres appareils.</p>' : ''}
         <label class="fl">Temps de détection (tête tournée) : <b id="holdV">${fmtS(S.settings.hold)}</b><input type="range" id="hold" min="0.3" max="2" step="0.1" value="${S.settings.hold}"></label>
+        <label class="fl">Temporisation entre deux questions (la tête n’est pas prise en compte juste après une question) : <b id="delaiV">${fmtS(S.settings.delai)}</b><input type="range" id="delai" min="0" max="5" step="0.1" value="${S.settings.delai}"></label>
         <label class="fl">Amplitude du mouvement : <b id="sensV">${Math.round(S.settings.sens * 100)} %</b><input type="range" id="sens" min="0.5" max="1.6" step="0.05" value="${S.settings.sens}"></label>
         <label class="fl">Seuil de déclenchement (score) : <b id="seuilV">${Math.round(S.settings.seuil * 100)} %</b><input type="range" id="seuil" min="0.4" max="0.9" step="0.05" value="${S.settings.seuil}"></label>
         <label class="fl">Durée de calibration de la position de repos : <b id="calibV">${fmtS(S.settings.calib)}</b><input type="range" id="calib" min="0.5" max="3" step="0.1" value="${S.settings.calib}"></label>
@@ -1932,6 +1939,8 @@ function bindAdmin() {
   on('#modeSel', 'change', async e => { const mode = e.target.value; await adm('save-settings', { ...S.settings, mode }, mode === 'auto' ? 'Mode automatisé : l’enchaînement démarre en quittant l’espace admin' : 'Mode classique activé'); if (mode === 'auto' && !tracker.running) toggleCam(); });
   on('#hold', 'input', e => { $('#holdV').textContent = fmtS(e.target.value); });
   on('#hold', 'change', e => adm('save-settings', { ...S.settings, hold: +e.target.value }, 'Temps de détection enregistré'));
+  on('#delai', 'input', e => { $('#delaiV').textContent = fmtS(e.target.value); });
+  on('#delai', 'change', e => adm('save-settings', { ...S.settings, delai: +e.target.value }, 'Temporisation enregistrée'));
   on('#calib', 'input', e => { $('#calibV').textContent = fmtS(e.target.value); });
   on('#calib', 'change', e => adm('save-settings', { ...S.settings, calib: +e.target.value }, 'Durée de calibration enregistrée'));
   on('#recalAuto', 'change', e => adm('save-settings', { ...S.settings, recal: e.target.checked }));
@@ -1965,6 +1974,7 @@ function openCamSettings() {
         <option value="classique" ${c.mode !== 'auto' ? 'selected' : ''}>Classique : une personne touche l’écran</option>
         <option value="auto" ${c.mode === 'auto' ? 'selected' : ''}>Automatisé : enchaînement de questions par la caméra</option></select></label>
       <label class="fl">Temps de détection (tête tournée) : <b id="csHoldV">${fmtS(c.hold)}</b><input type="range" id="csHold" min="0.3" max="2" step="0.1" value="${c.hold}"></label>
+      <label class="fl">Temporisation entre deux questions : <b id="csDelaiV">${fmtS(c.delai)}</b><input type="range" id="csDelai" min="0" max="5" step="0.1" value="${c.delai}"></label>
       <label class="fl">Amplitude du mouvement (angle à tourner) : <b id="csSensV">${pct(c.sens)}</b><input type="range" id="csSens" min="0.5" max="1.6" step="0.05" value="${c.sens}"></label>
       <label class="fl">Seuil de déclenchement (score) : <b id="csSeuilV">${pct(c.seuil)}</b><input type="range" id="csSeuil" min="0.4" max="0.9" step="0.05" value="${c.seuil}"></label>
       <label class="fl">Durée de calibration de la position de repos : <b id="csCalibV">${fmtS(c.calib)}</b><input type="range" id="csCalib" min="0.5" max="3" step="0.1" value="${c.calib}"></label>
@@ -1981,6 +1991,7 @@ function openCamSettings() {
     </div></div></div>`;
   const slider = (id, key, label, fmt) => { $(id).oninput = e => { setLocalCam(key, e.target.value); $(label).textContent = fmt(cfg()[key]); }; };
   slider('#csHold', 'hold', '#csHoldV', fmtS);
+  slider('#csDelai', 'delai', '#csDelaiV', fmtS);
   slider('#csSens', 'sens', '#csSensV', pct);
   slider('#csSeuil', 'seuil', '#csSeuilV', pct);
   slider('#csCalib', 'calib', '#csCalibV', fmtS);
@@ -1993,6 +2004,17 @@ function openCamSettings() {
 }
 
 /* ================================================================ caméra (MediaPipe) */
+// Temporisation entre deux questions : juste après l'affichage d'une question (ou d'un résumé), la tête
+// n'est pas prise en compte pendant `delai` secondes, le temps qu'Anna revienne au centre. Une barre se vide à l'écran.
+const tooSoon = () => Date.now() - (F.qTs || 0) < cfg().delai * 1000;
+const waitBar = () => (tracker.running && cfg().delai > 0) ? `<div class="qwait" style="--d:${cfg().delai}s;--e:-${Math.max(0, (Date.now() - (F.qTs || 0)) / 1000)}s" title="Temporisation : la tête est prise en compte à la fin de la barre"><i></i><span>${ic('cam')} temporisation ${fmtS(cfg().delai)}</span></div>` : '';
+// Geste reçu de la caméra, ou d'un autre capteur par l'événement DOM « anna:gesture » (détail : oui / non / parler).
+function cameraGesture(g) {
+  const ignore = g !== 'parler' && F.mode !== 'home' && tooSoon();
+  $('#camLast').textContent = ({ oui: 'Oui', non: 'Non', parler: 'Parler' }[g] || g) + (ignore ? ' · trop tôt' : '');
+  if (!ignore) answer(g);
+}
+document.addEventListener('anna:gesture', e => cameraGesture(e.detail));
 const tracker = createHeadTracker({
   video: $('#vid'),
   getSensitivity: () => S ? cfg().sens : 1,
@@ -2003,7 +2025,7 @@ const tracker = createHeadTracker({
   getSeuil: () => S ? cfg().seuil : 0.6,
   onStatus: (msg, etat) => { for (const el of [$('#camMsg'), $('#csState')]) if (el) { el.textContent = msg; el.dataset.etat = etat || ''; } },
   onMeters: (yes, no, talk) => { $('#mP').style.width = Math.min(100, yes * 100) + '%'; $('#mY').style.width = Math.min(100, no * 100) + '%'; $('#mR').style.width = Math.min(100, talk * 100) + '%'; },
-  onGesture: g => { $('#camLast').textContent = { oui: 'Oui', non: 'Non', parler: 'Parler' }[g]; answer(g); },
+  onGesture: cameraGesture,
 });
 async function toggleCam() {
   if (tracker.running) { tracker.stop(); $('#cam').hidden = true; return renderTop(); }

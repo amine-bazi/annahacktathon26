@@ -249,3 +249,8 @@ img.av{object-fit:cover;background:var(--panel-2)}
 .who .pill{margin-left:8px;vertical-align:middle}
 .ovc.cs{max-width:600px}.ovc.cs .fgrid{max-height:min(52vh,520px);overflow:auto;padding-right:4px}
 .csState{font-weight:700;padding:8px 12px;border-radius:10px;background:var(--panel-2)}.csState[data-etat="oui"]{color:var(--yes)}.csState[data-etat="non"]{color:var(--no)}
+.qwait{display:flex;align-items:center;gap:10px;font-size:13px;color:var(--muted);margin-top:4px}
+.qwait i{flex:1;display:block;height:6px;border-radius:3px;background:var(--panel-2);position:relative;overflow:hidden}
+.qwait i::after{content:"";position:absolute;inset:0;background:var(--accent);transform-origin:left;animation:qwait var(--d,1.5s) linear var(--e,0s) forwards}
+.qwait span{display:inline-flex;align-items:center;gap:4px;white-space:nowrap}
+@keyframes qwait{from{transform:scaleX(1)}to{transform:scaleX(0)}}

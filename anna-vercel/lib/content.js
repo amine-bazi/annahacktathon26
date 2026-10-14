@@ -18,6 +18,7 @@ export function normalizeSettings(s) {
     cam: s.cam === 'user' ? 'user' : 'environment',     // caméra avant ou arrière
     mode: s.mode === 'auto' ? 'auto' : 'classique',     // classique (une personne touche l'écran) ou automatisé (caméra)
     hold: num(s.hold, 0.3, 2, 0.6),                     // temps de détection (s) : durée pendant laquelle la tête reste tournée
+    delai: num(s.delai, 0, 5, 1.5),                     // temporisation (s) : juste après une question, la tête n'est pas prise en compte
     calib: num(s.calib, 0.5, 3, 1),                     // durée de calibration de la position de repos (s)
     recal: s.recal !== false,                           // recalibrer au début de chaque enchaînement (mode automatisé)
     autoRepeat: num(s.autoRepeat, 5, 60, 20),           // mode automatisé : rappel de la question si pas de réponse (s)
