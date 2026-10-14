@@ -1,0 +1,20 @@
+{
+  "name": "anna-aac",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Communication oui / non / je veux parler par mouvements de tête, avec banque de questions et moteur de recommandation.",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev": "vercel dev",
+    "dev:mock": "node scripts/dev-mock.mjs",
+    "db:migrate": "node --env-file=.env.local scripts/migrate.mjs",
+    "db:seed": "node --env-file=.env.local scripts/seed.mjs",
+    "check": "node --check api/data.js && node --check api/auth.js && node --check api/admin.js && node --check public/app.js && node --check public/head-tracking.js"
+  },
+  "dependencies": {
+    "@neondatabase/serverless": "^1.0.0"
+  }
+}

@@ -1,0 +1,957 @@
+<title>Parler avec Anna</title>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: mobile-first AAC board — category rail on the left, big uniform cells on the right, fixed Non · Parler · Oui bar */
+:root{
+  --bg:#EEF2F1; --panel:#FFFFFF; --panel-2:#E3EAE8; --ink:#13211F; --muted:#566865; --line:#CFD9D6;
+  --accent:#0F5E63; --accent-ink:#FFFFFF; --yes:#1E7A4C; --no:#B2412E; --talk:#B87A08; --urgent:#B3261E; --priv:#5A4C8C;
+  --tl:36%; --tint:13%;
+  --f:"Atkinson Hyperlegible",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+  --r:16px; --rail:88px;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0D1615; --panel:#15201F; --panel-2:#1C2A28; --ink:#E5EEEC; --muted:#93A6A2; --line:#2A3B38;
+  --accent:#4FB0AC; --accent-ink:#06201F; --yes:#3E9E6D; --no:#C9604C; --talk:#E6B043; --urgent:#F0675C; --priv:#A497E0;
+  --tl:68%; --tint:16%; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0D1615; --panel:#15201F; --panel-2:#1C2A28; --ink:#E5EEEC; --muted:#93A6A2; --line:#2A3B38;
+  --accent:#4FB0AC; --accent-ink:#06201F; --yes:#3E9E6D; --no:#C9604C; --talk:#E6B043; --urgent:#F0675C; --priv:#A497E0;
+  --tl:68%; --tint:16%; color-scheme:dark}
+@media (min-width:720px){:root{--rail:176px}}
+html,body{height:100%}
+body{background:var(--bg);color:var(--ink);font-family:var(--f);font-size:16px;line-height:1.4;overscroll-behavior:none}
+*{box-sizing:border-box}
+button{font:inherit;color:inherit;cursor:pointer;-webkit-tap-highlight-color:transparent}
+button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,summary:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+svg.i{width:1em;height:1em;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex:none}
+.app{height:100%;display:grid;grid-template-rows:auto minmax(0,1fr) auto;max-width:1180px;margin:0 auto;padding-inline:16px}
+.muted{color:var(--muted)}
+
+/* top */
+.top{display:flex;align-items:center;gap:8px;padding-block:10px;border-bottom:1px solid var(--line)}
+.who{display:flex;align-items:baseline;gap:10px;margin-right:auto;min-width:0;overflow:hidden}
+@media (max-width:430px){.who .clock .d{display:none}}
+.who b{font-size:22px}
+.who .clock{font-family:var(--mono);color:var(--muted);font-size:13px;white-space:nowrap}
+.ib{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:42px;min-width:42px;padding:0 11px;border-radius:12px;border:1px solid var(--line);background:var(--panel);font-size:15px}
+.ib svg{font-size:20px}
+.ib.on{border-color:var(--accent);color:var(--accent)}
+.ib.nav-b{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+@media (max-width:430px){.who .clock{display:none}}
+.ib .lb{display:none}
+@media (min-width:720px){.ib .lb{display:inline}}
+.btn{display:inline-flex;align-items:center;gap:8px;padding:10px 14px;border-radius:12px;border:1px solid var(--line);background:var(--panel);font-size:15px}
+.btn:hover{border-color:var(--accent)}
+.btn.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.btn.danger{color:var(--no)}
+.btn.sm{padding:6px 10px;font-size:13.5px;border-radius:9px}
+
+/* main */
+.main{overflow:auto;min-height:0;padding-block:12px}
+.main.board-mode{overflow:hidden}
+
+/* board: rail + grid */
+.board{display:grid;grid-template-columns:var(--rail) minmax(0,1fr);grid-template-rows:minmax(0,1fr);gap:12px;height:100%;min-height:0}
+.rail{display:flex;flex-direction:column;gap:6px;overflow-y:auto;padding-right:2px;min-height:0;-webkit-overflow-scrolling:touch}
+.rb{flex:none}
+.rb{--tc:hsl(var(--h) 48% var(--tl));display:flex;flex-direction:column;align-items:center;gap:5px;padding:11px 4px;border-radius:14px;border:2px solid transparent;background:transparent;font-size:12.5px;font-weight:700;text-align:center;line-height:1.15;transition:background .15s}
+.rb svg{font-size:28px;color:var(--tc)}
+.rb:hover{background:var(--panel)}
+.rb.cur{background:color-mix(in srgb,var(--tc) var(--tint),var(--panel));border-color:var(--tc)}
+@media (min-width:720px){.rb{flex-direction:row;justify-content:flex-start;gap:12px;padding:12px 14px;font-size:16px;text-align:left}.rb svg{font-size:26px}}
+.gridwrap{overflow-y:auto;min-width:0;min-height:0;padding-bottom:8px;-webkit-overflow-scrolling:touch}
+.ghead{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin:2px 0 10px}
+.ghead h2{margin:0;font-size:20px}
+.ghead span{font-size:13px;color:var(--muted)}
+.cells{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+@media (min-width:560px){.cells{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media (min-width:1000px){.cells{grid-template-columns:repeat(4,minmax(0,1fr))}}
+.cell{--tc:hsl(var(--h) 48% var(--tl));display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;min-height:124px;padding:12px 8px;border-radius:var(--r);border:2px solid color-mix(in srgb,var(--tc) 35%,var(--line));background:color-mix(in srgb,var(--tc) var(--tint),var(--panel));text-align:center;transition:transform .12s,border-color .12s}
+.cell:hover{border-color:var(--tc)}
+.cell:active{transform:scale(.97)}
+.cell>svg{font-size:44px;color:var(--tc)}
+.cell b{font-size:17px;line-height:1.15}
+.cell small{font-size:12.5px;color:var(--muted);line-height:1.2}
+.cell .av{width:52px;height:52px;font-size:19px}
+.cell.urg{border-color:var(--urgent)}
+.av{width:42px;height:42px;border-radius:50%;display:grid;place-items:center;font-weight:700;font-size:16px;color:#fff;flex:none}
+
+/* question */
+.qv{max-width:920px;margin:0 auto;display:flex;flex-direction:column;gap:18px}
+.nav{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.crumbs{display:flex;flex-wrap:wrap;gap:6px;align-items:center;color:var(--muted);font-size:14px}
+.crumbs .c{padding:4px 10px;border-radius:999px;background:var(--panel);border:1px solid var(--line);color:var(--ink)}
+.crumbs .lockb{color:var(--priv);border-color:var(--priv)}
+.q{font-size:clamp(30px,7vw,60px);line-height:1.12;font-weight:700;margin:0;text-wrap:balance}
+.qmeta{display:flex;gap:14px;flex-wrap:wrap;color:var(--muted);font-size:14px}
+.pill{font-size:12px;padding:2px 8px;border-radius:999px;border:1px solid var(--line);white-space:nowrap;color:var(--muted)}
+.pill.ok{color:var(--yes);border-color:var(--yes)}.pill.ko{color:var(--no);border-color:var(--no)}.pill.u{color:var(--urgent);border-color:var(--urgent)}.pill.t{color:var(--talk);border-color:var(--talk)}
+.done{display:grid;grid-template-columns:1fr;gap:14px;max-width:1100px;margin:0 auto}
+@media (min-width:900px){.done{grid-template-columns:minmax(0,1fr) 360px;align-items:start}}
+.result{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:20px;display:flex;flex-direction:column;gap:12px}
+.result.urgent{border:2px solid var(--urgent)}
+.tag{font-size:12.5px;text-transform:uppercase;letter-spacing:.09em;color:var(--muted);font-weight:700}
+.big{font-size:clamp(26px,5vw,44px);font-weight:700;line-height:1.15;margin:0;text-wrap:balance}
+.urg{color:var(--urgent);font-weight:700;margin:0}
+.notes{list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:6px}
+.notes li{display:flex;justify-content:space-between;gap:10px;padding:8px 12px;border-radius:10px;background:var(--bg);font-size:15px}
+.ans-y{color:var(--yes);font-weight:700}.ans-n{color:var(--no);font-weight:700}
+.next{font-size:clamp(21px,4vw,28px);font-weight:700;margin:4px 0 0}
+.deeper{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:16px}
+.deeper h3{margin:0 0 4px;font-size:16px;display:flex;gap:8px;align-items:center}
+.deeper p{margin:0 0 10px;color:var(--muted);font-size:13.5px}
+.dlist{display:flex;flex-direction:column;gap:6px}
+.dlist button{text-align:left;padding:11px 12px;border-radius:11px;border:1px solid var(--line);background:var(--bg);font-size:15px}
+.dlist button:hover{border-color:var(--accent)}
+.dlist button.asked{opacity:.5}
+.plist{list-style:none;margin:0;padding:0;font-size:17px;display:flex;flex-direction:column;gap:4px}
+.plist time{font-family:var(--mono);font-size:14px;color:var(--muted);margin-right:8px}
+
+/* spell */
+.spell{max-width:900px;margin:0 auto;display:flex;flex-direction:column;gap:14px}
+.typed{font-family:var(--mono);font-size:clamp(26px,6vw,46px);min-height:1.6em;padding:10px 16px;border-radius:var(--r);background:var(--panel);border:1px solid var(--line);word-break:break-word}
+.caret{display:inline-block;width:.55ch;background:var(--accent);animation:blink 1s steps(2) infinite;height:1em;vertical-align:-.12em}
+@keyframes blink{50%{opacity:0}}
+.lg{display:flex;flex-wrap:wrap;gap:6px;padding:6px;border-radius:12px;border:2px solid transparent}
+.lg.cur{border-color:var(--talk);background:color-mix(in srgb,var(--talk) 10%,transparent)}
+.lg button{min-width:44px;height:46px;padding:0 10px;border-radius:10px;border:1px solid var(--line);background:var(--panel);font-size:20px;font-weight:700}
+.lg button.cur{background:var(--talk);color:#1b1300;border-color:var(--talk)}
+.lg button.act{font-size:13px}
+
+/* answer bar */
+.bar{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);gap:8px;padding-block:10px calc(12px + env(safe-area-inset-bottom,0px));border-top:1px solid var(--line)}
+.ans{height:clamp(68px,10vh,100px);border-radius:18px;border:none;font-size:clamp(24px,5vw,38px);font-weight:700;display:flex;align-items:center;justify-content:center;gap:12px;color:#fff;transition:transform .1s,filter .15s}
+.ans:active,.ans.flash{transform:scale(.97);filter:brightness(1.15)}
+.ans.flash{outline:4px solid var(--ink);outline-offset:3px}
+.ans.no{background:var(--no)}.ans.yes{background:var(--yes)}
+.ans{padding:0 6px;min-width:0}
+.ans.talk{background:var(--talk);color:#1b1300;font-size:15px;padding:0 12px;min-width:84px;flex-direction:column;gap:2px}
+.ans.talk svg{font-size:28px}
+.ans .long{display:none}
+@media (min-width:600px){.ans .long{display:inline}.ans .short{display:none}.ans.talk{min-width:150px;font-size:18px}}
+.ans[disabled]{opacity:.35;cursor:default}
+
+/* camera */
+.cam{position:fixed;right:16px;top:calc(64px + env(safe-area-inset-top,0px));width:132px;background:var(--panel);border:1px solid var(--line);border-radius:12px;overflow:hidden;box-shadow:0 8px 24px rgba(0,0,0,.18);z-index:5}
+@media (min-width:720px){.cam{width:190px;top:auto;bottom:calc(130px + env(safe-area-inset-bottom,0px))}}
+.cam video{width:100%;display:block;transform:scaleX(-1);aspect-ratio:4/3;object-fit:cover;background:#000}
+.cam .st{padding:6px 8px;font-size:12px;display:flex;flex-direction:column;gap:4px}
+.meter{display:grid;grid-template-columns:36px 1fr;gap:6px;align-items:center;font-family:var(--mono);font-size:10.5px;color:var(--muted)}
+.meter i{height:5px;border-radius:3px;background:var(--panel-2);position:relative;overflow:hidden}
+.meter i b{position:absolute;left:0;top:0;bottom:0;background:var(--accent)}
+
+/* overlay + toast */
+.ov{position:fixed;inset:0;background:color-mix(in srgb,var(--bg) 70%,transparent);backdrop-filter:blur(4px);display:grid;place-items:center;z-index:20;padding:16px}
+.ovc{background:var(--panel);border:3px solid var(--talk);border-radius:20px;padding:22px;max-width:520px;width:100%;display:flex;flex-direction:column;gap:12px}
+.ovc h2{margin:0;font-size:clamp(26px,6vw,36px)}
+.ovc .row{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.ovc .row .btn{justify-content:center;padding:14px 10px;font-size:16px}
+.ovc.lock{border-color:var(--accent)}
+.ovc .err{color:var(--no);font-weight:700;margin:0;min-height:1.2em}
+.toast{position:fixed;left:50%;top:calc(16px + env(safe-area-inset-top,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:10px;z-index:30;font-size:15px;max-width:calc(100% - 32px)}
+
+/* admin (simple, one column) */
+.adm{max-width:820px;margin:0 auto;display:flex;flex-direction:column;gap:14px}
+.seg{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;padding:4px;border-radius:14px;background:var(--panel-2);position:sticky;top:0;z-index:2}
+.seg button{padding:10px 6px;border:none;border-radius:10px;background:transparent;font-size:15px;color:var(--muted);font-weight:700}
+.seg button.cur{background:var(--panel);color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,.12)}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:16px;min-width:0}
+.card h3{margin:0 0 10px;font-size:17px}
+.stats{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
+@media (min-width:640px){.stats{grid-template-columns:repeat(4,1fr)}}
+.stat{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:12px}
+.stat .n{font-size:28px;font-weight:700;font-variant-numeric:tabular-nums;display:block}
+.stat .l{font-size:13px;color:var(--muted)}
+.stat.warn{border-color:var(--urgent)}.stat.warn .n{color:var(--urgent)}
+.rows{list-style:none;margin:0;padding:0}
+.rows li{display:flex;gap:10px;align-items:center;padding:10px 0;border-top:1px solid var(--line)}
+.rows li:first-child{border-top:none}
+.rows .t{flex:1;min-width:0}
+.rows .t small{display:block;color:var(--muted);font-size:13px}
+.rows time{font-family:var(--mono);font-size:12.5px;color:var(--muted);width:64px;flex:none;align-self:flex-start;padding-top:2px}
+.rows .l1{padding-left:20px}.rows .l2{padding-left:40px}
+.sbar{width:64px;height:7px;background:var(--panel-2);border-radius:4px;position:relative;flex:none}
+.sbar b{position:absolute;inset:0 auto 0 0;background:var(--accent);border-radius:4px}
+.chips{display:flex;gap:6px;overflow-x:auto;padding-bottom:4px}
+.chips button{padding:7px 12px;border-radius:999px;border:1px solid var(--line);background:var(--panel);font-size:14px;white-space:nowrap}
+.chips button.cur{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.fgrid{display:grid;gap:10px}
+@media (min-width:640px){.fgrid.c2{grid-template-columns:1fr 1fr}}
+label.fl{display:flex;flex-direction:column;gap:4px;font-size:13px;color:var(--muted)}
+input[type=text],input[type=search],select,textarea{font:inherit;font-size:16px;padding:10px 11px;border-radius:10px;border:1px solid var(--line);background:var(--bg);color:var(--ink);width:100%}
+textarea{font-family:var(--mono);font-size:14px;min-height:170px}
+.ck{display:flex;gap:8px;align-items:center;font-size:15px}
+details{border-top:1px solid var(--line);padding-top:10px;margin-top:10px}
+summary{cursor:pointer;font-weight:700;font-size:15px;padding:4px 0;color:var(--accent)}
+details[open] summary{margin-bottom:10px}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-douleur" viewBox="0 0 24 24"><path d="M13 2 4 14h7l-1 8 9-12h-7l1-8z"/></symbol>
+  <symbol id="i-soif" viewBox="0 0 24 24"><path d="M5 8h12v6a5 5 0 0 1-5 5h-2a5 5 0 0 1-5-5V8z"/><path d="M17 10h1.5a2.5 2.5 0 0 1 0 5H17M8 2.5v3M12 2.5v3"/></symbol>
+  <symbol id="i-hygiene" viewBox="0 0 24 24"><path d="M12 3s6 6.5 6 11a6 6 0 0 1-12 0c0-4.5 6-11 6-11z"/><path d="M9.5 14.5a2.5 2.5 0 0 0 2.5 2.5"/></symbol>
+  <symbol id="i-position" viewBox="0 0 24 24"><path d="M3 18V6M3 14h18v4M21 14v-1a3 3 0 0 0-3-3h-7v4"/><circle cx="7" cy="11" r="2"/></symbol>
+  <symbol id="i-temp" viewBox="0 0 24 24"><path d="M14 14.8V5a2 2 0 0 0-4 0v9.8a4 4 0 1 0 4 0z"/><path d="M12 9v7"/></symbol>
+  <symbol id="i-emotions" viewBox="0 0 24 24"><path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z"/></symbol>
+  <symbol id="i-journee" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></symbol>
+  <symbol id="i-passerelle" viewBox="0 0 24 24"><path d="M4 21V6l8-3 8 3v15M2 21h20M10 21v-5h4v5M8 9h2M14 9h2M8 13h2M14 13h2"/></symbol>
+  <symbol id="i-personnes" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><path d="M3 20a6 6 0 0 1 12 0"/><circle cx="17" cy="9" r="2.5"/><path d="M16 14.2A5 5 0 0 1 21 19"/></symbol>
+  <symbol id="i-proches" viewBox="0 0 24 24"><path d="M3 11 12 4l9 7M5 10v10h14V10"/><path d="M12 18s-3.5-2-3.5-4.5a1.75 1.75 0 0 1 3.5-.6 1.75 1.75 0 0 1 3.5.6C15.5 16 12 18 12 18z"/></symbol>
+  <symbol id="i-activites" viewBox="0 0 24 24"><circle cx="8" cy="17" r="3"/><path d="M11 17V5l9-2v12"/><circle cx="17" cy="15" r="3"/></symbol>
+  <symbol id="i-autre" viewBox="0 0 24 24"><path d="M4 5h16v11H9l-5 4V5z"/><path d="M8 9h8M8 12h5"/></symbol>
+  <symbol id="i-intime" viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></symbol>
+  <symbol id="i-interaction" viewBox="0 0 24 24"><path d="M3 4h12v8H8l-5 3.5V4z"/><path d="M18 8h3v11.5L17 17h-6v-2"/></symbol>
+  <symbol id="i-dire" viewBox="0 0 24 24"><path d="M4 9v6h4l5 4V5L8 9H4z"/><path d="M16.5 8.5a5 5 0 0 1 0 7M19 6a8.5 8.5 0 0 1 0 12"/></symbol>
+  <symbol id="i-star" viewBox="0 0 24 24"><path d="m12 3 2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1-4.4-4.3 6.1-.9z"/></symbol>
+  <symbol id="i-cam" viewBox="0 0 24 24"><path d="M3 7h4l2-2h6l2 2h4v12H3z"/><circle cx="12" cy="13" r="3.5"/></symbol>
+  <symbol id="i-home" viewBox="0 0 24 24"><path d="M3 11 12 4l9 7M5 10v10h14V10"/></symbol>
+  <symbol id="i-back" viewBox="0 0 24 24"><path d="M10 6 4 12l6 6M4 12h16"/></symbol>
+  <symbol id="i-voice" viewBox="0 0 24 24"><path d="M4 9v6h4l5 4V5L8 9H4z"/><path d="M16.5 8.5a5 5 0 0 1 0 7"/></symbol>
+  <symbol id="i-yes" viewBox="0 0 24 24"><path d="M5 12.5 10 17 19 7"/></symbol>
+  <symbol id="i-no" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></symbol>
+  <symbol id="i-talk" viewBox="0 0 24 24"><path d="M4 5h16v11H9l-5 4V5z"/><circle cx="9" cy="10.5" r=".6"/><circle cx="12" cy="10.5" r=".6"/><circle cx="15" cy="10.5" r=".6"/></symbol>
+  <symbol id="i-scan" viewBox="0 0 24 24"><rect x="4" y="4" width="6" height="6" rx="1"/><rect x="14" y="4" width="6" height="6" rx="1"/><rect x="4" y="14" width="6" height="6" rx="1"/><rect x="14" y="14" width="6" height="6" rx="1"/></symbol>
+  <symbol id="i-spell" viewBox="0 0 24 24"><path d="M4 19 8.5 6h1L14 19M6 14.5h6M15 19l2.5-7h1L21 19"/></symbol>
+  <symbol id="i-plan" viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 10h16M9 3v4M15 3v4"/></symbol>
+  <symbol id="i-gear" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1 7 17M17 7l2.1-2.1"/></symbol>
+  <symbol id="i-deeper" viewBox="0 0 24 24"><path d="M5 12h12M13 7l5 5-5 5"/></symbol>
+</svg>
+
+<div class="app" id="app">
+  <header class="top" id="top"></header>
+  <main class="main" id="main"></main>
+  <footer class="bar" id="bar">
+    <button class="ans no" id="bNo" type="button" aria-label="Non"><svg class="i"><use href="#i-no"/></svg>NON</button>
+    <button class="ans talk" id="bTalk" type="button" aria-label="Je veux parler"><svg class="i"><use href="#i-talk"/></svg><span class="long">Je veux parler</span><span class="short">Parler</span></button>
+    <button class="ans yes" id="bYes" type="button" aria-label="Oui"><svg class="i"><use href="#i-yes"/></svg>OUI</button>
+  </footer>
+</div>
+<div class="cam" id="cam" hidden>
+  <video id="vid" playsinline muted></video>
+  <div class="st">
+    <div id="camMsg" class="muted">Démarrage…</div>
+    <div class="meter">oui<i><b id="mP"></b></i></div>
+    <div class="meter">non<i><b id="mY"></b></i></div>
+    <div class="meter">parler<i><b id="mR"></b></i></div>
+    <div id="camLast" style="font-weight:700"></div>
+    <button class="btn sm" id="recal" type="button">Recalibrer</button>
+  </div>
+</div>
+<div id="ovRoot"></div>
+
+<script>
+/* ================================================================ data (questions au tutoiement) */
+const INTENS = [
+  {id:'int.forte', l:'Forte', q:'C’est une douleur forte ?'},
+  {id:'int.moyenne', l:'Moyenne', q:'C’est une douleur moyenne ?'},
+  {id:'int.legere', l:'Légère', q:'C’est une douleur légère ?'}
+];
+const T = (l,q,then,o={}) => ({l,q,then,...o});
+const kids = arr => arr.map(([l,q]) => T(l,q));
+
+const DEFAULT_TYPES = [
+  {name:'Besoins essentiels', short:'Besoins', icon:'soif', h:195},
+  {name:'Émotions & douleurs', short:'Émotions', icon:'emotions', h:350},
+  {name:'Interaction', short:'Échanger', icon:'interaction', h:300},
+  {name:'Personnes', short:'Personnes', icon:'personnes', h:265},
+  {name:'Proches', short:'Proches', icon:'proches', h:25},
+  {name:'Le centre', short:'Centre', icon:'passerelle', h:170},
+  {name:'Activités', short:'Activités', icon:'activites', h:95},
+  {name:'Autres', short:'Autres', icon:'autre', h:220},
+];
+
+const A = (l,ask) => ({l, q:`Demander : « ${ask} »`, ask});
+const D = (l,ask) => ({l, q:`Dire : « ${ask} »`, ask, say:true});
+const DEFAULT_THEMES = [
+  {id:'interaction', label:'Poser une question', group:'Interaction', sub:'Anna demande à quelqu’un', items:[
+    A('Ça va ?','Comment ça va ?'),
+    A('Ta journée','Qu’est-ce que tu as fait aujourd’hui ?'),
+    A('Ton programme','C’est quoi ton programme aujourd’hui ?'),
+    A('Mon programme','Qu’est-ce qui est prévu pour moi aujourd’hui ?'),
+    A('Quoi de neuf','Quoi de neuf ?'),
+    A('La famille','Comment va la famille ?'),
+    A('Bien dormi','Tu as bien dormi ?'),
+    A('La météo','Il fait quel temps dehors ?'),
+    A('Combien de temps','Tu restes combien de temps ?'),
+    A('Prochaine visite','Tu reviens quand ?'),
+    A('Raconte','Tu peux me raconter quelque chose ?'),
+    A('Les nouvelles','Qu’est-ce qui se passe dans le monde ?'),
+    T('Autre question','Tu veux épeler ta question ?',null,{action:'spell'}),
+  ], deeper:['Tu veux en savoir plus ?','Tu veux poser une autre question ?','Ça te fait plaisir ?','Tu veux que je revienne te raconter la suite ?']},
+  {id:'dire', label:'Dire quelque chose', group:'Interaction', sub:'Merci, bonjour…', items:[
+    D('Bonjour','Bonjour !'),
+    D('Merci','Merci.'),
+    D('Contente','Je suis contente de te voir.'),
+    D('Tu m’as manqué','Tu m’as manqué.'),
+    D('Je t’aime','Je t’aime.'),
+    D('Bonne journée','Bonne journée !'),
+    D('Pas maintenant','Pas maintenant, s’il te plaît.'),
+    D('Attends','Attends, laisse-moi réfléchir.'),
+    D('Tu as raison','Tu as raison.'),
+    D('Je ne suis pas d’accord','Je ne suis pas d’accord.'),
+    D('Au revoir','Au revoir, à bientôt.'),
+    T('Autre chose','Tu veux épeler ce que tu veux dire ?',null,{action:'spell'}),
+  ], deeper:['Tu veux ajouter quelque chose ?','Tu veux le dire à quelqu’un d’autre aussi ?']},
+  {id:'soif', label:'Boire / manger', group:'Besoins essentiels', sub:'Soif, faim', items:[
+    T('Boire','Tu veux boire ?',kids([['Eau','De l’eau ?'],['Jus','Un jus de fruit ?'],['Boisson chaude','Une boisson chaude (thé, café) ?'],['Eau gazeuse','De l’eau gazeuse ?']])),
+    T('Manger','Tu as faim ?',kids([['Collation','Une collation ?'],['Repas','C’est pour le repas ?'],['Sucré','Quelque chose de sucré ?'],['Salé','Quelque chose de salé ?']])),
+    T('Bouche sèche','Tu as la bouche sèche ?'),
+    T('Nausée','Tu as la nausée ?'),
+  ], deeper:['Avec une paille ?','Plutôt frais ?','En petite quantité ?','Ça passe bien quand tu avales ?','Tu veux que je reste pendant que tu bois ?']},
+  {id:'hygiene', label:'Toilette', group:'Besoins essentiels', sub:'Change, aspiration', items:[
+    T('Change','Tu as besoin d’être changée ?'),
+    T('Aspiration','Tu as besoin d’une aspiration ?'),
+    T('Yeux','Tes yeux te gênent ?'),
+    T('Toilette','Tu veux faire ta toilette ?'),
+    T('Dents','Tu veux te brosser les dents ?'),
+    T('Coiffure','Tu veux être coiffée ?'),
+    T('Mouchage','Tu as besoin d’être mouchée ?'),
+  ], deeper:['Maintenant ?','Tu préfères une personne en particulier ?','Tu veux que la porte soit fermée ?','Tu veux de la musique pendant le soin ?']},
+  {id:'position', label:'Position', group:'Besoins essentiels', sub:'Lit, coussin', items:[
+    T('Changer de position','Tu veux changer de position ?',kids([['Côté gauche','Sur le côté gauche ?'],['Côté droit','Sur le côté droit ?'],['Sur le dos','Sur le dos ?'],['Au fauteuil','Au fauteuil ?']])),
+    T('Remonter','Tu veux qu’on te remonte dans le lit ?'),
+    T('Dossier','Tu veux régler le dossier ?',kids([['Plus haut','Plus redressée ?'],['Plus bas','Plus allongée ?']])),
+    T('Tête / coussin','Il faut ajuster ta tête ou ton coussin ?'),
+    T('Bras / jambe','Il faut bouger un bras ou une jambe ?',kids([['Bras gauche','Le bras gauche ?'],['Bras droit','Le bras droit ?'],['Jambe gauche','La jambe gauche ?'],['Jambe droite','La jambe droite ?']])),
+    T('Démangeaison','Ça te gratte ?',kids([['Visage','Au visage ?'],['Tête','Sur la tête ?'],['Corps','Sur le corps ?'],['Bras / jambes','Aux bras ou aux jambes ?']])),
+    T('Drap / vêtement','Un drap ou un vêtement te gêne ?'),
+  ], deeper:['C’est mieux comme ça ?','Il faut ajuster encore un peu ?','Tu veux rester comme ça plus d’une heure ?','Tu veux qu’on repasse vérifier bientôt ?']},
+  {id:'temp', label:'Chaud / froid', group:'Besoins essentiels', sub:'Température', items:[
+    T('Chaud','Tu as trop chaud ?',kids([['Retirer une couverture','On retire une couverture ?'],['Aérer','On aère ou on met le ventilateur ?'],['Linge frais','Tu veux un linge frais ?']])),
+    T('Froid','Tu as froid ?',kids([['Couverture','On ajoute une couverture ?'],['Fenêtre','On ferme la fenêtre ?'],['Gilet / chaussettes','Tu veux un gilet ou des chaussettes ?']])),
+  ], deeper:['C’est mieux maintenant ?','C’est surtout les mains ou les pieds ?','Tu veux qu’on prenne ta température ?']},
+  {id:'douleur', label:'Douleur', group:'Émotions & douleurs', sub:'Où, combien', items:[
+    T('Poitrine','Tu as mal à la poitrine ?','@i',{urgent:true}),
+    T('Tête','Tu as mal à la tête ?','@i'),
+    T('Dos','Tu as mal au dos ?','@i'),
+    T('Ventre','Tu as mal au ventre ?','@i'),
+    T('Gorge / bouche','Tu as mal à la gorge ou à la bouche ?','@i'),
+    T('Bras / mains','Tu as mal aux bras ou aux mains ?','@i'),
+    T('Jambes / pieds','Tu as mal aux jambes ou aux pieds ?','@i'),
+    T('Point d’appui','Tu as mal à un point d’appui (fesses, talons, coudes) ?','@i'),
+  ], deeper:['C’est une douleur nouvelle ?','Ça dure depuis plus d’une heure ?','Ça lance ou ça brûle ?','Tu veux un antidouleur ?','Changer de position pourrait soulager ?','C’est pire qu’hier ?']},
+  {id:'emotions', label:'Émotions', group:'Émotions & douleurs', sub:'Comment je me sens', items:[
+    T('Ça va bien','Tu te sens bien en ce moment ?'),
+    T('Fatigue','Tu te sens fatiguée ?'),
+    T('Inquiétude','Tu es inquiète ?',kids([['Ma santé','Pour ta santé ?'],['Mes proches','Pour tes proches ?'],['La suite','Pour la suite ?'],['Une démarche','Pour une démarche ou un papier ?']])),
+    T('Tristesse','Tu te sens triste ?'),
+    T('Frustration','Tu es frustrée ou en colère ?',kids([['Pas comprise','Parce qu’on ne te comprend pas ?'],['Attente','À cause de l’attente ?'],['Un soin','À cause d’un soin ?'],['Autre chose','Pour autre chose ?']])),
+    T('Solitude','Tu te sens seule ?',kids([['Compagnie','Tu veux de la compagnie ?'],['Appeler un proche','Tu veux appeler un proche ?']])),
+    T('Peur','Tu as peur ?'),
+    T('Réconfort','Tu as besoin de réconfort ?'),
+    T('Me changer les idées','Tu veux te changer les idées ?'),
+  ], deeper:['Tu veux en parler maintenant ?','C’est lié à quelque chose d’aujourd’hui ?','C’est lié à une personne ?','Ça dure depuis plusieurs jours ?','Tu veux voir la psychologue ?','Tu veux que je reste un moment ?','Tu veux que je prévienne un proche ?']},
+  {id:'personnes', label:'Personnes', group:'Personnes', sub:'Équipe, rencontres', dynamic:true, peopleKinds:['Équipe','Rencontres'], items:[
+    T('Quelqu’un d’autre','C’est à propos de quelqu’un d’autre ?',null,{action:'spell'}),
+    T('Nouvelle rencontre','Tu as rencontré quelqu’un de nouveau ?'),
+  ], deeper:['Tu as envie de revoir cette personne ?','Cette rencontre t’a fait plaisir ?','Tu veux que je lui transmette quelque chose ?','Il y a eu un malentendu ?','Tu veux en parler à l’équipe ?']},
+  {id:'proches', label:'Proches', group:'Proches', sub:'Famille, amis', dynamic:true, peopleKinds:['Famille','Amis'], items:[
+    T('Quelqu’un d’autre','C’est à propos d’un autre proche ?',null,{action:'spell'}),
+    T('Visite','C’est à propos d’une visite ?',kids([['Savoir quand','Tu veux savoir quand ?'],['Pas aujourd’hui','Tu préfères pas de visite aujourd’hui ?'],['Plus longue','Tu veux une visite plus longue ?']])),
+    T('Photos / vidéos','Tu veux voir des photos ou des vidéos de tes proches ?'),
+    T('Événement familial','C’est à propos d’un événement familial ?'),
+  ], deeper:['Cette personne te manque ?','Tu veux qu’elle vienne bientôt ?','C’est une bonne nouvelle ?','Quelque chose t’inquiète à son sujet ?','Tu veux lui transmettre un message ?','Tu veux que je l’appelle pour toi ?']},
+  {id:'passerelle', label:'La Passerelle', group:'Le centre', sub:'Équipe, matériel', items:[
+    T('Voir un soignant','Tu veux voir quelqu’un de l’équipe ?',kids([['Infirmière','Une infirmière ?'],['Aide-soignante','Une aide-soignante ?'],['Médecin','Le médecin ?'],['Kiné','Le kiné ?'],['Ergothérapeute','L’ergothérapeute ?'],['Psychologue','La psychologue ?'],['Orthophoniste','L’orthophoniste ?']])),
+    T('Rendez-vous','Tu as une question sur un rendez-vous ?'),
+    T('Salle commune','Tu veux aller en salle commune ?'),
+    T('Matériel','Il y a un problème avec le matériel ?',kids([['Fauteuil','Le fauteuil ?'],['Lit','Le lit ?'],['Sonnette','La sonnette ?'],['Tablette / caméra','La tablette ou la caméra ?']])),
+    T('Calme','Tu veux plus de calme ?'),
+    T('Repas du centre','C’est à propos des repas du centre ?'),
+  ], deeper:['C’est urgent ?','Tu veux que je transmette à l’équipe ?','C’est déjà arrivé avant ?','Tu es satisfaite de la réponse de l’équipe ?']},
+  {id:'journee', label:'Ma journée', group:'Activités', sub:'Programme, repos', items:[
+    T('Programme du jour','Tu veux savoir ce qui est prévu aujourd’hui ?',null,{action:'planning'}),
+    T('Heure et date','Tu veux connaître l’heure et la date ?',null,{action:'heure'}),
+    T('Repos','Tu veux te reposer ou dormir ?'),
+    T('Lumière','Tu veux changer la lumière ?',kids([['Plus de lumière','Plus de lumière ?'],['Moins de lumière','Moins de lumière ?'],['Volets','Ouvrir ou fermer les volets ?']])),
+    T('Réveil','Tu veux qu’on te réveille à une heure précise ?'),
+  ], deeper:['Le programme te convient ?','Tu veux changer quelque chose aujourd’hui ?','La journée est trop chargée ?','Tu as bien dormi ?']},
+  {id:'activites', label:'Loisirs', group:'Activités', sub:'Ateliers, sorties', items:[
+    T('Atelier','Tu veux participer à un atelier ?',kids([['Musique','L’atelier musique ?'],['Art','Un atelier d’art ?'],['Lecture','Un atelier lecture ?'],['Jeux','Un atelier jeux ?']])),
+    T('Sortir','Tu veux sortir ?',kids([['Jardin','Au jardin ?'],['Promenade','En promenade ?'],['En ville','En ville ?']])),
+    T('Écran / son','Tu veux la télé ou de la musique ?',kids([['Télévision','La télé ?'],['Musique','De la musique ?'],['Radio','La radio ?'],['Livre audio','Un livre audio ?']])),
+    T('Volume','Il faut changer le volume ?',kids([['Plus fort','Plus fort ?'],['Moins fort','Moins fort ?'],['Couper','Couper le son ?']])),
+    T('Jeu','Tu veux jouer ?',kids([['Cartes','Aux cartes ?'],['Quiz','Un quiz ?'],['Tablette','Sur la tablette ?']])),
+    T('Lecture','Tu veux qu’on te lise quelque chose ?'),
+  ], deeper:['Tu as aimé cette activité ?','Tu veux la refaire cette semaine ?','C’était trop long ?','Tu veux y aller avec quelqu’un ?','Tu veux essayer une nouvelle activité ?']},
+  {id:'autre', label:'Autre sujet', group:'Autres', sub:'Actualité, souvenirs', items:[
+    T('Actualité','Tu veux parler de l’actualité ?',kids([['France','De la France ?'],['Monde','Du monde ?'],['Sport','Du sport ?'],['Météo','De la météo ?']])),
+    T('Souvenirs','Tu veux parler d’un souvenir ?',kids([['Enfance','De ton enfance ?'],['Voyage','D’un voyage ?'],['Travail','De ton travail ?'],['Famille','De ta famille ?']])),
+    T('Projets / envies','Tu veux parler d’un projet ou d’une envie ?',kids([['Sortie','D’une sortie ?'],['Événement familial','D’un événement familial ?'],['Fête','D’un anniversaire ou d’une fête ?']])),
+    T('Culture','Tu veux parler d’un film, d’un livre ou de musique ?',kids([['Film / série','D’un film ou d’une série ?'],['Livre','D’un livre ?'],['Musique','De musique ?']])),
+    T('Plat préféré','Tu as envie d’un plat en particulier ?'),
+    T('Nature / animaux','Tu veux parler de nature ou d’animaux ?'),
+    T('Une question','Tu as une question à poser ?',null,{action:'spell'}),
+  ], deeper:['Tu veux en parler plus longtemps ?','Tu veux que je cherche plus d’informations ?','C’est un souvenir heureux ?','On en reparle plus tard ?','Tu veux partager ça avec un proche ?']},
+  {id:'intime', label:'Vie privée', group:'Autres', sub:'Jamais enregistré', private:true, items:[
+    T('En privé','Tu veux parler à quelqu’un en privé ?'),
+    T('Ma santé','Tu as une question sur ta santé ?'),
+    T('Intimité','C’est à propos de ton intimité ?'),
+    T('Spiritualité','C’est à propos de religion ou de spiritualité ?'),
+    T('Choix de soins','C’est à propos de tes choix de soins ?'),
+    T('Argent / démarches','C’est à propos d’argent ou de démarches ?'),
+    T('Être seule','Tu veux rester seule un moment ?'),
+  ], deeper:['Tu veux que la porte soit fermée ?','Tu préfères en parler à quelqu’un d’autre ?','Tu veux que ce soit transmis au médecin ?','On en reparle plus tard ?']},
+];
+
+const PERSON_FOLLOW = [
+  ['Voir','Tu veux voir {n} ?'],
+  ['Appeler','Tu veux appeler {n} ?'],
+  ['Message','Tu as un message pour {n} ?','spell'],
+  ['Nouvelles','Tu veux des nouvelles de {n} ?'],
+  ['Me manque','{n} te manque ?'],
+  ['Bon moment','Tu as passé un bon moment avec {n} ?'],
+  ['Souci','Il y a un souci avec {n} ?'],
+  ['Pas maintenant','Tu préfères ne pas voir {n} pour l’instant ?'],
+];
+const DEFAULT_PEOPLE = [
+  {name:'Léa', role:'fille', kind:'Famille'},
+  {name:'Hugo', role:'petit-fils', kind:'Famille'},
+  {name:'Claire', role:'sœur', kind:'Famille'},
+  {name:'Sophie', role:'amie', kind:'Amis'},
+  {name:'Dr Martin', role:'médecin', kind:'Équipe'},
+  {name:'Karim', role:'kiné', kind:'Équipe'},
+  {name:'Julie', role:'aide-soignante', kind:'Équipe'},
+  {name:'Paul', role:'croisé en salle commune', kind:'Rencontres'},
+];
+const KINDS=['Famille','Amis','Équipe','Rencontres'];
+const DEFAULT_PLAN = `08:00 Toilette
+09:30 Kiné avec Karim
+11:00 Repos
+12:00 Déjeuner
+14:00 Sieste
+15:30 Visite de Léa
+16:30 Atelier musique
+19:00 Dîner
+21:00 Coucher`;
+
+/* ================================================================ state */
+const KEY='anna-proto-v6';
+const slug = s => s.normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');
+function assignIds(list, prefix){ (list||[]).forEach(it=>{ if(!it.id) it.id=prefix+'.'+slug(it.l); if(Array.isArray(it.then)) assignIds(it.then,it.id); }); }
+function personTheme(p, themes=S.themes){ return (themes.find(t=>t.dynamic && (t.peopleKinds||[]).includes(p.kind)) || themes.find(t=>t.id==='personnes')).id; }
+let mem=null;
+function load(){ try{ const s=localStorage.getItem(KEY); if(s) return JSON.parse(s); }catch(e){} return mem||seed(); }
+function save(){ mem=S; try{ localStorage.setItem(KEY,JSON.stringify(S)); }catch(e){} }
+function seed(){
+  const themes=JSON.parse(JSON.stringify(DEFAULT_THEMES)); themes.forEach(t=>assignIds(t.items,t.id));
+  const people=DEFAULT_PEOPLE.map(p=>({...p,id:slug(p.name)}));
+  const now=Date.now(), H=3600e3;
+  const h=(off,theme,path,extra={})=>({ts:now-off*H, theme, path, result:'resolu', n:path.length+1, dur:15000+Math.round(off*900%40000), notes:[], ...extra});
+  const history=[
+    h(0.4,'soif',['Boire / manger','Boire','Eau']),
+    h(1.6,'position',['Position','Changer de position','Côté gauche']),
+    h(2.9,'douleur',['Douleur','Dos','Moyenne'],{notes:[['Changer de position pourrait soulager ?','oui']]}),
+    h(4.2,'proches',['Proches','Léa','Voir']),
+    h(5.1,'hygiene',['Toilette','Aspiration']),
+    h(6.3,'emotions',['Émotions','Fatigue'],{notes:[['Tu as bien dormi ?','non']]}),
+    h(20.5,'douleur',['Douleur','Dos','Forte'],{notes:[['Tu veux un antidouleur ?','oui']]}),
+    h(22.1,'soif',['Boire / manger','Boire','Eau']),
+    h(23.4,'activites',['Loisirs','Atelier','Musique'],{notes:[['Tu as aimé cette activité ?','oui']]}),
+    h(25.2,'passerelle',['La Passerelle','Voir un soignant','Kiné']),
+    h(26.4,'position',['Position','Remonter']),
+    h(27.0,'autre',['Autre sujet','Souvenirs','Voyage'],{notes:[['C’est un souvenir heureux ?','oui']]}),
+    h(29.8,'emotions',['Émotions','Inquiétude','Mes proches']),
+    h(30.5,'personnes',['Personnes','Paul','Bon moment']),
+    h(43.7,'soif',['Boire / manger','Boire','Boisson chaude']),
+    h(45.9,'douleur',['Douleur','Jambes / pieds','Légère']),
+    h(47.2,'proches',['Proches','Claire','Appeler']),
+    h(47.9,'parler',['Message','LUNETTES'],{result:'message'}),
+    h(48.6,'position',['Position'],{result:'non-trouve'}),
+  ];
+  let s=7; const rnd=()=>{ s=(s*16807)%2147483647; return s/2147483647; };
+  const stats={};
+  const walk=list=>(list||[]).forEach(it=>{ const a=3+Math.floor(rnd()*26), y=Math.floor(a*(0.08+rnd()*0.5)); stats[it.id]={a,y,n:a-y,p:0,rt:a*(1400+Math.floor(rnd()*4200))}; if(Array.isArray(it.then)) walk(it.then); });
+  themes.forEach(t=>walk(t.items)); walk(INTENS);
+  Object.assign(stats,{'douleur.dos':{a:31,y:19,n:12,p:0,rt:31*1900},'soif.boire':{a:40,y:29,n:11,p:0,rt:40*1500},'soif.boire.eau':{a:29,y:21,n:8,p:0,rt:29*1300},'hygiene.aspiration':{a:22,y:14,n:8,p:0,rt:22*1600},'position.changer-de-position':{a:27,y:17,n:10,p:0,rt:27*2100},'interaction.ca-va':{a:34,y:26,n:8,p:0,rt:34*1200},'interaction.mon-programme':{a:21,y:14,n:7,p:0,rt:21*1500},'dire.merci':{a:25,y:18,n:7,p:0,rt:25*1300}});
+  people.forEach(p=>{ stats[personTheme(p,themes)+'.'+p.id]={a:4+Math.floor(rnd()*12),y:2+Math.floor(rnd()*4),n:2,p:0,rt:9000}; });
+  return {v:4, types:JSON.parse(JSON.stringify(DEFAULT_TYPES)), themes, people, history, stats, plan:DEFAULT_PLAN, settings:{voice:false, reco:true, sens:1, example:true}};
+}
+let S=load();
+
+/* ================================================================ helpers */
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const ic=id=>`<svg class="i"><use href="#i-${id}"/></svg>`;
+const theme=id=>S.themes.find(t=>t.id===id);
+const typeOf=name=>S.types.find(t=>t.name===name)||{name, short:name, icon:'autre', h:hue(name)};
+const iconFor=t=>document.getElementById('i-'+t.id)?t.id:(t.icon||'autre');
+const fmtT=ts=>new Date(ts).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});
+const fmtD=ts=>{ const d=new Date(ts), t=new Date(), y=new Date(); y.setDate(t.getDate()-1);
+  if(d.toDateString()===t.toDateString()) return 'Auj.'; if(d.toDateString()===y.toDateString()) return 'Hier';
+  return d.toLocaleDateString('fr-FR',{day:'numeric',month:'short'}); };
+function hue(s){ return [...String(s)].reduce((a,c)=>a+c.charCodeAt(0)*7,0)%360; }
+const avatar=p=>`<span class="av" style="background:hsl(${hue(p.name)} 38% 42%)">${esc(p.name.replace(/^Dr\.? /,'').slice(0,1))}</span>`;
+function toast(msg){ const d=document.createElement('div'); d.className='toast'; d.setAttribute('role','status'); d.textContent=msg; document.body.appendChild(d); setTimeout(()=>d.remove(),2800); }
+let answerSaidAt=0;
+function sayAnswer(a){ if(!('speechSynthesis' in window)) return; try{ speechSynthesis.cancel(); const u=new SpeechSynthesisUtterance(a==='oui'?'Oui':'Non'); u.lang='fr-FR'; u.rate=.95; speechSynthesis.speak(u); answerSaidAt=Date.now(); }catch(e){} }
+function speak(t,force){ if((!S.settings.voice&&!force)||!('speechSynthesis' in window)) return; try{ if(Date.now()-answerSaidAt>1500) speechSynthesis.cancel(); const u=new SpeechSynthesisUtterance(t); u.lang='fr-FR'; u.rate=.95; speechSynthesis.speak(u);}catch(e){} }
+function chime(){ try{ const a=new (window.AudioContext||window.webkitAudioContext)(); [660,880].forEach((f,i)=>{ const o=a.createOscillator(), g=a.createGain(); o.frequency.value=f; o.connect(g); g.connect(a.destination); const t0=a.currentTime+i*.22; g.gain.setValueAtTime(.0001,t0); g.gain.exponentialRampToValueAtTime(.25,t0+.02); g.gain.exponentialRampToValueAtTime(.0001,t0+.35); o.start(t0); o.stop(t0+.4); }); }catch(e){} }
+
+/* ================================================================ recommendation engine */
+function st(id){ return S.stats[id]||(S.stats[id]={a:0,y:0,n:0,p:0,rt:0}); }
+function scoreOf(id){
+  const x=S.stats[id]; if(!x||!x.a) return {score:.3,hit:0,a:0,avg:0};
+  const maxA=Math.max(1,...Object.values(S.stats).map(v=>v.a));
+  const hit=(x.y+1)/(x.a+2), use=x.a/maxA, avg=x.rt/x.a, speed=Math.max(0,Math.min(1,1-avg/8000));
+  return {score:.5*hit+.3*use+.2*speed, hit, a:x.a, avg};
+}
+function ordered(list){
+  if(!S.settings.reco||!Array.isArray(list)) return list;
+  return list.map((it,i)=>({it,i,s:scoreOf(it.id).score})).sort((a,b)=>(b.it.urgent?1:0)-(a.it.urgent?1:0) || (a.it.action==='spell')-(b.it.action==='spell') || b.s-a.s || a.i-b.i).map(o=>o.it);
+}
+function peopleOf(t){ return S.people.filter(p=>personTheme(p)===t.id); }
+function themeItems(t){
+  if(!t.dynamic) return ordered(t.items);
+  const ppl=peopleOf(t).map(p=>({id:t.id+'.'+p.id, l:p.name, q:`C’est à propos de ${p.name} (${p.role}) ?`, person:p.id,
+    then:PERSON_FOLLOW.map(([l,q,a])=>({id:t.id+'.'+p.id+'.'+slug(l), l, q:q.replace('{n}',p.name), action:a}))}));
+  return [...ordered(ppl), ...t.items];
+}
+function suggestions(){
+  const now=Date.now(), hr=new Date().getHours(), map=new Map();
+  S.history.filter(e=>e.result==='resolu' && e.path.length>1 && theme(e.theme)).forEach(e=>{
+    const k=e.theme+'|'+e.path.join('|'); const dh=Math.abs(new Date(e.ts).getHours()-hr);
+    const w=(Math.min(dh,24-dh)<=2?2:1)*Math.exp(-(now-e.ts)/(7*864e5));
+    const m=map.get(k)||{theme:e.theme,path:e.path,w:0}; m.w+=w; map.set(k,m);
+  });
+  return [...map.values()].sort((a,b)=>b.w-a.w).slice(0,5);
+}
+
+/* ================================================================ flow */
+let F={mode:'home'}, undo=[], view='patient', cat='__rapide';
+function cur(){ const top=F.stack[F.stack.length-1]; return top.list[top.idx]; }
+function goHome(){ F={mode:'home'}; undo=[]; render(); }
+function startTheme(id, pre){
+  const t=theme(id); if(!t) return;
+  const list=themeItems(t);
+  if(!list.length){ toast('« '+t.label+' » n’a pas encore de questions : ajoute-les dans l’espace admin.'); return goHome(); }
+  F={mode:'q', theme:id, stack:[{list, idx:0}], path:[t.label], asked:[], t0:Date.now(), priv:!!t.private, urgent:false};
+  undo=[];
+  if(pre){ const it=F.stack[0].list.find(x=>x.id===pre); if(it){ F.path.push(it.l); F.stack.push({list:ordered(it.then), idx:0}); } }
+  showQ();
+}
+function startScan(){
+  const list=S.themes.filter(t=>themeItems(t).length).map(t=>({t,u:S.history.filter(e=>e.theme===t.id).length})).sort((a,b)=>b.u-a.u)
+    .map(({t})=>({id:'scan.'+t.id, l:t.label, q:`C’est à propos de : ${t.label} ?`, goto:t.id}));
+  F={mode:'q', theme:'scan', stack:[{list, idx:0}], path:['Choix du thème'], asked:[], t0:Date.now(), priv:false};
+  undo=[]; showQ();
+}
+function quickQ(sg){
+  const t=theme(sg.theme), first=t&&t.items.find(x=>x.l===sg.path[1]);
+  const rest=sg.path.slice(2).join(', ').toLowerCase();
+  if(first && first.ask) return first.q;
+  if(first) return rest ? first.q.replace(/\s*\?$/,'')+' : '+rest+' ?' : first.q;
+  return 'Encore : '+sg.path.slice(1).join(', ').toLowerCase()+' ?';
+}
+function startQuick(sg){
+  const leaf=sg.path[sg.path.length-1];
+  F={mode:'q', theme:sg.theme, stack:[{list:[{id:'quick', l:leaf, q:quickQ(sg)}], idx:0}], path:sg.path.slice(0,-1), asked:[], t0:Date.now(), priv:false, quick:true};
+  undo=[]; showQ();
+}
+function showPlan(){ F={mode:'done', theme:'journee', path:['Ma journée','Programme du jour'], result:'resolu', action:'planning', entryNotes:[], priv:false, quick:true}; render(); speak('Voici le programme de ta journée.'); }
+function showQ(){ F.qTs=Date.now(); render(); speak(cur().q); }
+
+function answer(a){
+  flash(a);
+  if($('#ovRoot').firstChild){ if(a==='parler') return; closeOv(); }
+  if(a==='parler') return talk();
+  if(view!=='patient') return;
+  sayAnswer(a);
+  if(F.mode==='home'){ if(a==='oui') startScan(); return; }
+  if(F.mode==='spell') return spellAnswer(a);
+  if(F.mode==='deeper'){ F.entryNotes.push([F.dq,a]); if(F.entry){ F.entry.notes.push([F.dq,a]); save(); } F.mode='done'; render(); return; }
+  if(F.mode==='done'){ if(a==='oui'){ (F.theme==='scan'||F.theme==='parler'||F.quick)?startScan():startTheme(F.theme); } else goHome(); return; }
+  if(F.mode!=='q') return;
+  undo.push(JSON.stringify(F));
+  const it=cur(), rt=Date.now()-F.qTs;
+  if(!F.priv && !it.private && it.id!=='quick' && !it.id.startsWith('scan.')){ const x=st(it.id); x.a++; x[a==='oui'?'y':'n']++; x.rt+=rt; save(); }
+  F.asked.push(it.id);
+  if(a==='oui'){
+    if(it.goto) return startTheme(it.goto);
+    F.path.push(it.l); if(it.private) F.priv=true; if(it.urgent) F.urgent=true;
+    if(it.action==='spell') return startSpell(F.path.slice());
+    const th=it.then==='@i'?INTENS:it.then;
+    if(th && th.length){ F.stack.push({list:th===INTENS?INTENS:ordered(th), idx:0}); return showQ(); }
+    return conclude('resolu', it);
+  }
+  const top=F.stack[F.stack.length-1]; top.idx++;
+  if(top.idx>=top.list.length){
+    if(F.quick) return goHome();
+    return conclude(F.stack.length>1?'resolu':'non-trouve');
+  }
+  showQ();
+}
+function conclude(result, it){
+  Object.assign(F,{mode:'done', result, action:it?.action, ask:it?.ask, say:it?.say, entryNotes:[]});
+  if(!F.priv && F.theme!=='scan'){
+    F.entry={ts:Date.now(), theme:F.theme, path:F.path.slice(), result, n:F.asked.length, dur:Date.now()-F.t0, urgent:F.urgent, notes:[]};
+    S.history.unshift(F.entry); save();
+  } else F.entry=null;
+  render();
+  if(F.ask) return speak(F.ask, true);
+  speak((result==='non-trouve'?'Je n’ai pas trouvé. Tu veux épeler ?':'Compris : '+F.path.slice(1).join(', ')+'.')+' Autre chose ?');
+  if(F.urgent) chime();
+}
+function back(){ if(F.mode==='spell'||F.mode==='home') return goHome(); if(F.mode==='deeper'){ F.mode='done'; return render(); } const s=undo.pop(); if(!s) return goHome(); F=JSON.parse(s); showQ(); }
+
+/* spelling */
+const GROUPS=[['E','S','A','I','N','T','R','U','L'],['O','D','C','M','P','G','B','V','H'],['F','Q','J','X','Y','Z','K','W','’'],['ESPACE','EFFACER','TERMINER','ANNULER']];
+function startSpell(ctx){ F={mode:'spell', ctx:ctx||['Message'], g:0, l:null, text:'', priv:!!F.priv, theme:(F.theme&&F.theme!=='scan')?F.theme:'parler'}; render(); speak('On épelle. '+spellQ()); }
+function spellQ(){ return F.l===null?`Lettre dans : ${GROUPS[F.g].join(' ')} ?`:`« ${GROUPS[F.g][F.l]} » ?`; }
+function spellPick(g,l){
+  const v=GROUPS[g][l];
+  if(v==='ESPACE') F.text+=' '; else if(v==='EFFACER') F.text=F.text.slice(0,-1);
+  else if(v==='ANNULER') return goHome();
+  else if(v==='TERMINER'){
+    if(!F.text.trim()) return goHome();
+    const path=[...F.ctx, F.text.trim()], th=F.theme, priv=F.priv;
+    F={mode:'done', theme:th, path, result:'message', entryNotes:[], priv, ask:(th==='interaction'||th==='dire')?path[path.length-1]:undefined, say:th==='dire'};
+    if(!priv){ F.entry={ts:Date.now(), theme:th, path, result:'message', n:0, dur:0, notes:[]}; S.history.unshift(F.entry); save(); }
+    render(); speak((F.ask?'':'Message : ')+path[path.length-1], !!F.ask); return;
+  } else F.text+=v;
+  F.g=0; F.l=null; render(); speak(spellQ());
+}
+function spellAnswer(a){
+  if(F.l===null){ if(a==='oui') F.l=0; else F.g=(F.g+1)%GROUPS.length; }
+  else { if(a==='oui') return spellPick(F.g,F.l); F.l++; if(F.l>=GROUPS[F.g].length){ F.l=null; F.g=(F.g+1)%GROUPS.length; } }
+  render(); speak(spellQ());
+}
+
+/* « je veux parler » */
+function talk(){
+  chime(); speak('Anna veut parler');
+  if(F.mode==='q' && !F.priv && cur().id!=='quick'){ st(cur().id).p++; }
+  if(!F.priv){ S.history.unshift({ts:Date.now(), theme:'parler', path:['Demande de parole'], result:'parole', n:0, dur:0, notes:[]}); save(); }
+  $('#ovRoot').innerHTML=`<div class="ov" role="dialog" aria-modal="true" aria-labelledby="ovT"><div class="ovc">
+    <h2 id="ovT">Anna veut parler</h2>
+    <p class="muted" style="margin:0">Approche-toi et choisis avec elle comment continuer.</p>
+    <div class="row">
+      <button class="btn primary" data-ov="spell">${ic('spell')} Épeler</button>
+      <button class="btn" data-ov="scan">${ic('scan')} Les thèmes</button>
+      <button class="btn" data-ov="proches">${ic('proches')} Un proche</button>
+      <button class="btn" data-ov="close">Fermer</button>
+    </div></div></div>`;
+}
+function closeOv(){ $('#ovRoot').innerHTML=''; }
+document.addEventListener('click',e=>{
+  const b=e.target.closest('[data-ov]'); if(!b) return; const k=b.dataset.ov; closeOv(); view='patient';
+  if(k==='spell') startSpell(['Message']); else if(k==='scan') startScan(); else if(k==='proches') startTheme('proches'); else render();
+});
+
+/* ================================================================ render: patient */
+function render(){
+  renderTop();
+  const m=$('#main');
+  $('#bar').hidden=(view!=='patient');
+  m.classList.toggle('board-mode', view==='patient' && F.mode==='home');
+  if(view==='admin'){ m.innerHTML=renderAdmin(); bindAdmin(); return; }
+  m.innerHTML = F.mode==='home'?renderBoard() : F.mode==='q'?renderQ() : F.mode==='done'?renderDone() : F.mode==='deeper'?renderDeeper() : renderSpell();
+  m.scrollTop=0;
+}
+let unlocked=false;
+function pinHash(c){ let h=2166136261; for(const ch of 'anna-'+c){ h^=ch.charCodeAt(0); h=Math.imul(h,16777619); } return (h>>>0).toString(16); }
+function openAdmin(){
+  if(unlocked){ view='admin'; return render(); }
+  const create=!S.settings.pin;
+  $('#ovRoot').innerHTML=`<div class="ov" role="dialog" aria-modal="true" aria-labelledby="lkT"><form class="ovc lock" id="lockF">
+    <h2 id="lkT" style="font-size:26px">${ic('intime')} ${create?'Créer le code admin':'Espace admin'}</h2>
+    <p class="muted" style="margin:0">${create?'Choisis un code d’au moins 4 caractères. Il sera demandé à chaque accès.':'Entre le code soignant pour continuer.'}</p>
+    <input type="password" id="pin1" inputmode="numeric" autocomplete="off" placeholder="Code" aria-label="Code" required minlength="4">
+    ${create?'<input type="password" id="pin2" inputmode="numeric" autocomplete="off" placeholder="Confirmer le code" aria-label="Confirmer le code" required minlength="4">':''}
+    <p class="err" id="pinErr"></p>
+    <div class="row"><button class="btn primary">${create?'Créer et entrer':'Déverrouiller'}</button><button class="btn" type="button" data-ov="close">Annuler</button></div>
+  </form></div>`;
+  $('#pin1').focus();
+  $('#lockF').onsubmit=e=>{ e.preventDefault(); const a=$('#pin1').value;
+    if(create){ if(a.length<4) return $('#pinErr').textContent='Au moins 4 caractères.'; if(a!==$('#pin2').value) return $('#pinErr').textContent='Les deux codes sont différents.'; S.settings.pin=pinHash(a); save(); }
+    else if(pinHash(a)!==S.settings.pin){ $('#pin1').value=''; $('#pin1').focus(); return $('#pinErr').textContent='Code incorrect.'; }
+    unlocked=true; closeOv(); view='admin'; render(); };
+}
+function renderTop(){
+  const now=new Date();
+  $('#top').innerHTML=`
+    <div class="who"><b>Anna</b><span class="clock"><span class="d">${now.toLocaleDateString('fr-FR',{weekday:'short',day:'numeric',month:'short'})} · </span>${fmtT(now)}</span></div>
+    ${view==='patient'&&F.mode!=='home'?`<button class="ib nav-b" id="tBack" aria-label="Retour">${ic('back')}<span class="lb">Retour</span></button><button class="ib nav-b" id="tHome" aria-label="Accueil">${ic('home')}<span class="lb">Accueil</span></button>`:''}
+    <button class="ib ${cam.on?'on':''}" id="tCam" aria-label="Caméra" title="Détection des mouvements de tête">${ic('cam')}<span class="lb">${cam.on?'Tête active':'Caméra'}</span></button>
+    <button class="ib ${S.settings.voice?'on':''}" id="tVoice" aria-label="Voix" title="Lire les questions à voix haute">${ic('voice')}<span class="lb">Voix</span></button>
+    <button class="ib ${view==='admin'?'on':''}" id="tView" aria-label="${view==='admin'?'Retour à Anna':'Espace admin'}">${view==='admin'?ic('home'):ic('gear')}<span class="lb">${view==='admin'?'Vue Anna':'Admin'}</span></button>`;
+  const tb=$('#tBack'), th=$('#tHome'); if(tb) tb.onclick=back; if(th) th.onclick=goHome;
+  $('#tCam').onclick=()=>cam.on?stopCam():startCam();
+  $('#tVoice').onclick=()=>{ S.settings.voice=!S.settings.voice; save(); renderTop(); if(S.settings.voice) speak('Lecture à voix haute activée'); };
+  $('#tView').onclick=()=>{ if(view==='admin'){ view='patient'; unlocked=false; render(); toast('Espace soignant verrouillé'); } else openAdmin(); };
+}
+function railItems(){
+  const used=S.types.filter(ty=>S.themes.some(t=>t.group===ty.name));
+  return [{name:'__rapide', short:'Rapide', icon:'star', h:40}, ...used];
+}
+function renderBoard(){
+  const rail=railItems(); if(!rail.some(r=>r.name===cat)) cat='__rapide';
+  const cur=rail.find(r=>r.name===cat);
+  let head, cells;
+  if(cat==='__rapide'){
+    head=['Accès rapide','Hoche la tête pour tout parcourir'];
+    cells=[
+      `<button class="cell" style="--h:40" data-act="scan">${ic('scan')}<b>Tout parcourir</b><small>Oui / non thème par thème</small></button>`,
+      ...suggestions().map((s,i)=>{ const t=theme(s.theme); return `<button class="cell" style="--h:${typeOf(t.group).h}" data-sugg="${i}">${ic(iconFor(t))}<b>${esc(s.path.slice(1).join(' · '))}</b><small>${esc(t.label)} · fréquent</small></button>`; }),
+      `<button class="cell" style="--h:300" data-theme="interaction">${ic('interaction')}<b>Poser une question</b><small>Anna demande à quelqu’un</small></button>`,
+      `<button class="cell" style="--h:95" data-act="plan">${ic('plan')}<b>Ma journée</b><small>Le programme</small></button>`,
+      `<button class="cell" style="--h:40" data-act="spell">${ic('spell')}<b>Épeler</b><small>Lettre par lettre</small></button>`,
+    ];
+  } else {
+    const ts=S.themes.filter(t=>t.group===cat);
+    head=[cat, ts.length+' thème'+(ts.length>1?'s':'')];
+    cells=[];
+    ts.forEach(t=>{
+      cells.push(`<button class="cell" style="--h:${cur.h}" data-theme="${t.id}">${ic(t.private?'intime':iconFor(t))}<b>${esc(t.label)}</b><small>${esc(t.sub||'')}</small></button>`);
+      if(t.dynamic) peopleOf(t).forEach(p=>cells.push(`<button class="cell" style="--h:${cur.h}" data-person="${p.id}">${avatar(p)}<b>${esc(p.name)}</b><small>${esc(p.role)}</small></button>`));
+    });
+  }
+  return `<div class="board">
+    <nav class="rail" aria-label="Catégories">${rail.map(r=>`<button class="rb ${r.name===cat?'cur':''}" style="--h:${r.h}" data-cat="${esc(r.name)}">${ic(r.icon)}<span>${esc(r.short)}</span></button>`).join('')}</nav>
+    <div class="gridwrap"><div class="ghead"><h2>${esc(head[0])}</h2><span>${esc(head[1])}</span></div><div class="cells">${cells.join('')}</div></div>
+  </div>`;
+}
+function crumbs(){ return `<div class="crumbs">${F.path.map(p=>`<span class="c">${esc(p)}</span>`).join('<span>›</span>')}${F.priv?`<span class="c lockb">${ic('intime')} Non enregistré</span>`:''}</div>`; }
+const navBtns=()=>'';
+function renderQ(){
+  const it=cur(), top=F.stack[F.stack.length-1];
+  return `<div class="qv">${navBtns()}${crumbs()}
+    <h1 class="q">${esc(it.q)}</h1>
+    <div class="qmeta"><span>${top.idx+1} / ${top.list.length}</span>${it.urgent?'<span class="pill u">Prioritaire</span>':''}<span>Hocher = oui · tourner = non · pencher 1 s = parler</span></div>
+  </div>`;
+}
+function deeperList(){ return theme(F.theme)?.deeper||[]; }
+function renderDone(){
+  const plan=F.action==='planning'?`<ul class="plist">${parsePlan().map(p=>`<li><time>${p.t}</time>${esc(p.label)}</li>`).join('')}</ul>`:'';
+  const time=F.action==='heure'?`<p class="big" style="font-size:26px">${new Date().toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'})} · ${fmtT(Date.now())}</p>`:'';
+  const title=F.result==='non-trouve'?'Besoin non trouvé':F.result==='message'?'« '+F.path[F.path.length-1]+' »':(F.path.slice(1).join(' › ')||F.path[0]);
+  const asked=new Set(F.entryNotes.map(n=>n[0])), dl=deeperList();
+  return `<div class="done"><div class="result ${F.urgent?'urgent':''}">
+      ${navBtns()}${crumbs()}
+      ${F.ask?`<span class="tag">${F.say?'Anna te dit':'Anna te demande'}</span><p class="big" style="font-size:clamp(32px,7vw,60px)">${esc(F.ask)}</p><div><button class="btn" data-act="reread">${ic('voice')} Relire à voix haute</button></div>`:`
+      <span class="tag">${F.result==='non-trouve'?'Pas dans la liste':F.result==='message'?'Message d’Anna':'Anna a exprimé'}</span>
+      <p class="big">${esc(title)}</p>`}
+      ${F.urgent?'<p class="urg">Prioritaire : préviens l’équipe soignante maintenant.</p>':''}
+      ${plan}${time}
+      ${F.result==='non-trouve'?`<div><button class="btn primary" data-act="spellctx">${ic('spell')} Épeler avec Anna</button></div>`:''}
+      ${F.entryNotes.length?`<ul class="notes">${F.entryNotes.map(([q,a])=>`<li><span>${esc(q)}</span><span class="${a==='oui'?'ans-y':'ans-n'}">${a==='oui'?'Oui':'Non'}</span></li>`).join('')}</ul>`:''}
+      <p class="next">Autre chose, Anna ?</p>
+      <span class="muted" style="font-size:13.5px">Oui : continuer dans ce thème · Non : accueil</span>
+    </div>
+    ${dl.length?`<div class="deeper"><h3>${ic('deeper')} Pour aller plus loin</h3>
+      <p>Pour l’entourage : touche une question pour la poser à Anna.</p>
+      <div class="dlist">${dl.map((q,i)=>`<button data-deep="${i}" class="${asked.has(q)?'asked':''}">${esc(q)}</button>`).join('')}</div></div>`:''}
+  </div>`;
+}
+function renderDeeper(){ return `<div class="qv">${navBtns()}${crumbs()}<span class="pill t" style="align-self:flex-start">Pour aller plus loin</span><h1 class="q">${esc(F.dq)}</h1></div>`; }
+function renderSpell(){
+  return `<div class="spell">${navBtns()}
+    <div class="typed">${esc(F.text)}<span class="caret"></span></div>
+    <h1 class="q" style="font-size:clamp(22px,5vw,36px)">${esc(spellQ())}</h1>
+    <div>${GROUPS.map((g,gi)=>`<div class="lg ${gi===F.g?'cur':''}">${g.map((c,li)=>`<button class="${c.length>1?'act':''} ${gi===F.g&&li===F.l?'cur':''}" data-pick="${gi},${li}">${c}</button>`).join('')}</div>`).join('')}</div>
+    <p class="muted" style="margin:0;font-size:13.5px">Oui choisit le groupe puis la lettre, non passe au suivant. Tu peux aussi toucher une lettre.</p></div>`;
+}
+function parsePlan(){ return (S.plan||'').split('\n').map(l=>l.trim()).filter(Boolean).map(l=>{ const m=l.match(/^(\d{1,2})[:h](\d{2})\s+(.*)$/); return m?{t:m[1].padStart(2,'0')+':'+m[2], label:m[3]}:null; }).filter(Boolean); }
+
+$('#main').addEventListener('click',e=>{
+  if(view!=='patient') return;
+  const g=x=>e.target.closest(x);
+  let b;
+  if(b=g('[data-cat]')){ cat=b.dataset.cat; return render(); }
+  if(b=g('[data-theme]')) return startTheme(b.dataset.theme);
+  if(b=g('[data-person]')){ const p=S.people.find(x=>x.id===b.dataset.person), th=personTheme(p); return startTheme(th, th+'.'+p.id); }
+  if(b=g('[data-sugg]')) return startQuick(suggestions()[+b.dataset.sugg]);
+  if(b=g('[data-deep]')){ F.dq=deeperList()[+b.dataset.deep]; F.mode='deeper'; render(); speak(F.dq); return; }
+  if(b=g('[data-pick]')){ const [x,y]=b.dataset.pick.split(',').map(Number); return spellPick(x,y); }
+  if(b=g('[data-act]')){ const a=b.dataset.act;
+    if(a==='scan') startScan(); else if(a==='spell') startSpell(['Message']); else if(a==='plan') showPlan();
+    else if(a==='back') back(); else if(a==='home') goHome(); else if(a==='spellctx') startSpell([...F.path]); else if(a==='reread') speak(F.ask,true); }
+});
+$('#bYes').onclick=()=>answer('oui'); $('#bNo').onclick=()=>answer('non'); $('#bTalk').onclick=()=>answer('parler');
+document.addEventListener('keydown',e=>{
+  if(e.target.matches('input,textarea,select')) return;
+  const k=e.key.toLowerCase();
+  if(k==='o'||k==='arrowright') answer('oui');
+  else if(k==='n'||k==='arrowleft') answer('non');
+  else if(k==='p'||k===' '){ e.preventDefault(); answer('parler'); }
+  else if(k==='backspace'||k==='escape'){ if($('#ovRoot').firstChild) closeOv(); else if(view==='patient') back(); }
+});
+function flash(a){ const el=$({oui:'#bYes',non:'#bNo',parler:'#bTalk'}[a]); el.classList.add('flash'); setTimeout(()=>el.classList.remove('flash'),350); }
+
+/* ================================================================ admin (simplifié) */
+let tab='resume', qType='', qTheme='', qSearch='', histF='', armed='';
+function walkItems(list,d,out,t){ (list||[]).forEach(it=>{ out.push({it,t,d}); if(Array.isArray(it.then)) walkItems(it.then,d+1,out,t); }); return out; }
+function renderAdmin(){
+  return `<div class="adm">
+    <div class="seg" role="tablist">${[['resume','Résumé'],['questions','Questions'],['reglages','Réglages']].map(([k,l])=>`<button role="tab" data-tab="${k}" class="${tab===k?'cur':''}">${l}</button>`).join('')}</div>
+    ${tab==='resume'?admResume():tab==='questions'?admQuestions():admSettings()}
+  </div>`;
+}
+function admResume(){
+  const day=new Date(); day.setHours(0,0,0,0);
+  const today=S.history.filter(e=>e.ts>=day.getTime());
+  const pain=today.filter(e=>e.theme==='douleur'), urg=today.filter(e=>e.urgent), talks=today.filter(e=>e.result==='parole'), nf=today.filter(e=>e.result==='non-trouve');
+  const list=S.history.filter(e=>!histF||e.theme===histF).slice(0,40);
+  const pill=r=>({resolu:'<span class="pill ok">compris</span>','non-trouve':'<span class="pill ko">non trouvé</span>',parole:'<span class="pill t">veut parler</span>',message:'<span class="pill ok">message</span>'}[r]||'');
+  return `${S.settings.example?'<p class="muted" style="margin:0;font-size:13.5px">Données d’exemple pour la démonstration.</p>':''}
+    <div class="stats">
+      <div class="stat"><span class="n">${today.length}</span><span class="l">échanges aujourd’hui</span></div>
+      <div class="stat ${pain.length>=2?'warn':''}"><span class="n">${pain.length}</span><span class="l">douleurs${pain[0]?' · '+esc(pain[0].path.slice(1).join(' › ')):''}</span></div>
+      <div class="stat ${urg.length?'warn':''}"><span class="n">${urg.length}</span><span class="l">prioritaires</span></div>
+      <div class="stat"><span class="n">${talks.length}</span><span class="l">demandes de parole</span></div>
+    </div>
+    ${nf.length?`<p class="muted" style="margin:0;font-size:14px">${nf.length} besoin(s) non trouvé(s) aujourd’hui : pense à ajouter une question.</p>`:''}
+    <div class="card"><div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:6px"><h3 style="margin:0">Historique</h3>
+      <select id="histF" style="width:auto">${[['','Tout'],...S.themes.filter(t=>!t.private).map(t=>[t.id,t.label]),['parler','Parole']].map(([v,l])=>`<option value="${v}" ${histF===v?'selected':''}>${esc(l)}</option>`).join('')}</select></div>
+      <ul class="rows">${list.map(e=>`<li><time>${fmtD(e.ts)}<br>${fmtT(e.ts)}</time><div class="t"><b>${esc(e.path.join(' › '))}</b>
+        ${e.notes?.length?`<small>${e.notes.map(([q,a])=>esc(q)+' → '+(a==='oui'?'oui':'non')).join(' · ')}</small>`:''}</div>
+        <div>${e.urgent?'<span class="pill u">prioritaire</span> ':''}${pill(e.result)}</div></li>`).join('')||'<li class="muted">Aucun échange.</li>'}</ul>
+      <p class="muted" style="font-size:13px;margin:10px 0 0">${ic('intime')} Les échanges « Vie privée » ne sont jamais enregistrés.</p></div>`;
+}
+function admQuestions(){
+  if(!qType||!S.types.some(t=>t.name===qType)) qType=S.types[0].name;
+  const ts=S.themes.filter(t=>t.group===qType);
+  if(!ts.some(t=>t.id===qTheme)) qTheme=ts[0]?.id||'';
+  const t=theme(qTheme);
+  const q=qSearch.trim().toLowerCase();
+  let rows;
+  if(q){ rows=[]; S.themes.forEach(th=>walkItems(th.items,0,rows,th)); rows=rows.filter(r=>(r.it.q+' '+r.it.l).toLowerCase().includes(q)).map(r=>({...r,d:0})).sort((a,b)=>scoreOf(b.it.id).score-scoreOf(a.it.id).score); }
+  else rows=t?walkItems(t.items,0,[],t):[];
+  const row=({it,t:th,d})=>{ const s=scoreOf(it.id); return `<li class="l${Math.min(d,2)}"><div class="t">${esc(it.q)}<small>${q?esc(th.label)+' · ':''}${s.a} usages · ${s.a?Math.round(s.hit*100)+' % oui':'nouvelle'}${it.urgent?' · prioritaire':''}${it.then==='@i'?' · + intensité':''}</small></div>
+    <span class="sbar" title="Score de recommandation"><b style="width:${Math.round(s.score*100)}%"></b></span>
+    <button class="btn sm danger" data-del="${th.id}|${it.id}">${armed===it.id?'Confirmer':'Suppr.'}</button></li>`; };
+  const parents=t?walkItems(t.items,0,[],t).filter(r=>r.it.then!=='@i'&&!r.it.action):[];
+  return `<input type="search" id="qSearch" placeholder="Chercher dans la banque de questions…" value="${esc(qSearch)}">
+    ${q?'':`<div class="chips">${S.types.map(ty=>`<button data-qtype="${esc(ty.name)}" class="${ty.name===qType?'cur':''}">${esc(ty.short)}</button>`).join('')}</div>
+    ${ts.length?`<div class="chips">${ts.map(x=>`<button data-qtheme="${x.id}" class="${x.id===qTheme?'cur':''}">${esc(x.label)}</button>`).join('')}</div>`:'<p class="muted">Aucun thème dans ce type. Crée-en un ci-dessous.</p>'}`}
+    <div class="card">
+      ${q?`<h3>${rows.length} résultat(s)</h3>`:t?`<h3>${esc(t.label)}${t.private?' <span class="pill">sans historique</span>':''}</h3>${t.dynamic?`<p class="muted" style="margin:0 0 6px;font-size:13.5px">+ une question par personne (${esc((t.peopleKinds||[]).join(', '))}), gérées dans Réglages.</p>`:''}`:''}
+      <ul class="rows" id="qRows">${rows.map(row).join('')}</ul>
+      <p class="muted" style="font-size:12.5px;margin:8px 0 0">La barre = score de recommandation (50 % taux de oui, 30 % usage, 20 % rapidité). Les meilleures questions sont posées en premier.</p>
+      ${t&&!q?`<details ${rows.length?'':'open'}><summary>+ Ajouter une question</summary>
+        <form class="fgrid c2" id="fQ">
+          <label class="fl">Question (tutoiement)<input type="text" id="qText" placeholder="Tu veux… ?" required></label>
+          <label class="fl">Mot-clé pour le résumé<input type="text" id="qLabel" placeholder="ex. Lunettes" required></label>
+          <label class="fl">Placer sous<select id="qParent"><option value="">Début du thème</option>${parents.map(({it,d})=>`<option value="${it.id}">${'— '.repeat(d+1)}${esc(it.l)}</option>`).join('')}</select></label>
+          <label class="ck"><input type="checkbox" id="qUrg"> Prioritaire</label>
+          <button class="btn primary">Ajouter</button>
+        </form></details>
+      <details><summary>Pour aller plus loin (${(t.deeper||[]).length})</summary>
+        <ul class="rows">${(t.deeper||[]).map((d,i)=>`<li><div class="t">${esc(d)}</div><button class="btn sm danger" data-ddel="${i}">Retirer</button></li>`).join('')}</ul>
+        <form class="fgrid c2" id="fD" style="margin-top:8px"><input type="text" id="dText" placeholder="Question pour l’entourage" required><button class="btn primary">Ajouter</button></form>
+      </details>`:''}
+    </div>
+    ${q?'':`<div class="card"><details style="border:none;margin:0;padding:0"><summary>+ Nouveau thème ou type</summary>
+      <form class="fgrid c2" id="fT">
+        <label class="fl">Nom du thème<input type="text" id="tName" required></label>
+        <label class="fl">Type<select id="tGroup">${S.types.map(g=>`<option ${g.name===qType?'selected':''}>${esc(g.name)}</option>`).join('')}</select></label>
+        <label class="ck"><input type="checkbox" id="tPriv"> Sans historique</label>
+        <button class="btn primary">Créer le thème</button>
+      </form>
+      <form class="fgrid c2" id="fTy" style="margin-top:12px"><label class="fl">Nouveau type (catégorie à gauche)<input type="text" id="tyName" placeholder="ex. Santé" required></label><button class="btn">Créer le type</button></form>
+    </details></div>`}`;
+}
+function admSettings(){
+  return `<div class="card"><h3>Personnes</h3>
+      <ul class="rows">${S.people.map(p=>`<li>${avatar(p)}<div class="t"><b>${esc(p.name)}</b><small>${esc(p.role)} · ${esc(p.kind)}</small></div><button class="btn sm danger" data-pdel="${p.id}">${armed===p.id?'Confirmer':'Retirer'}</button></li>`).join('')}</ul>
+      <details><summary>+ Ajouter une personne</summary>
+        <form class="fgrid c2" id="fP">
+          <label class="fl">Prénom<input type="text" id="pName" required></label>
+          <label class="fl">Lien avec Anna<input type="text" id="pRole" placeholder="ex. cousine, bénévole" required></label>
+          <label class="fl">Catégorie<select id="pKind">${KINDS.map(k=>`<option>${k}</option>`).join('')}</select></label>
+          <button class="btn primary">Ajouter</button>
+        </form></details></div>
+    <div class="card"><h3>Programme du jour</h3>
+      <textarea id="plan" aria-label="Programme du jour">${esc(S.plan)}</textarea>
+      <div style="margin-top:8px;display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap"><span class="muted" style="font-size:13px">Une ligne par moment : HH:MM activité</span><button class="btn primary" id="savePlan">Enregistrer</button></div></div>
+    <div class="card"><h3>Options</h3>
+      <div class="fgrid">
+        <label class="ck"><input type="checkbox" id="reco" ${S.settings.reco?'checked':''}> Poser d’abord les questions les plus efficaces</label>
+        <label class="fl">Amplitude du mouvement de tête : <b id="sensV">${Math.round(S.settings.sens*100)} %</b><input type="range" id="sens" min="0.5" max="1.6" step="0.05" value="${S.settings.sens}"></label>
+        <form class="fgrid c2" id="fPin"><label class="fl">Nouveau code soignant<input type="password" id="newPin" autocomplete="off" minlength="4" required></label><button class="btn">Changer le code</button></form>
+        <div><button class="btn danger" id="reset">${armed==='reset'?'Confirmer la réinitialisation':'Réinitialiser les données'}</button></div>
+      </div></div>`;
+}
+function findList(id,list){ for(const it of list||[]){ if(it.id===id) return list; if(Array.isArray(it.then)){ const r=findList(id,it.then); if(r) return r; } } return null; }
+function findItem(id,list){ for(const it of list||[]){ if(it.id===id) return it; if(Array.isArray(it.then)){ const r=findItem(id,it.then); if(r) return r; } } return null; }
+function bindAdmin(){
+  const m=$('#main'), on=(sel,ev,fn)=>m.querySelectorAll(sel).forEach(el=>el.addEventListener(ev,fn));
+  on('[data-tab]','click',e=>{ tab=e.currentTarget.dataset.tab; armed=''; render(); });
+  on('#histF','change',e=>{ histF=e.target.value; render(); });
+  on('[data-qtype]','click',e=>{ qType=e.currentTarget.dataset.qtype; qTheme=''; render(); });
+  on('[data-qtheme]','click',e=>{ qTheme=e.currentTarget.dataset.qtheme; render(); });
+  on('#qSearch','input',e=>{ qSearch=e.target.value; const pos=e.target.selectionStart; render(); const s=$('#qSearch'); s.focus(); s.setSelectionRange(pos,pos); });
+  on('[data-del]','click',e=>{ const [tid,id]=e.currentTarget.dataset.del.split('|'); if(armed!==id){ armed=id; return render(); }
+    const l=findList(id,theme(tid).items); if(l) l.splice(l.findIndex(x=>x.id===id),1); armed=''; save(); render(); toast('Question supprimée'); });
+  on('[data-ddel]','click',e=>{ theme(qTheme).deeper.splice(+e.currentTarget.dataset.ddel,1); save(); render(); });
+  on('[data-pdel]','click',e=>{ const id=e.currentTarget.dataset.pdel; if(armed!==id){ armed=id; return render(); } S.people=S.people.filter(p=>p.id!==id); armed=''; save(); render(); });
+  on('#fQ','submit',e=>{ e.preventDefault(); const t=theme(qTheme), it={l:$('#qLabel').value.trim(), q:$('#qText').value.trim()}; if($('#qUrg').checked) it.urgent=true;
+    const pid=$('#qParent').value; let target=t.items, prefix=t.id;
+    if(pid){ const p=findItem(pid,t.items); if(!Array.isArray(p.then)) p.then=[]; target=p.then; prefix=p.id; }
+    it.id=prefix+'.'+slug(it.l)+'-'+Date.now().toString(36).slice(-3); target.push(it); save(); render(); toast('Question ajoutée'); });
+  on('#fD','submit',e=>{ e.preventDefault(); const t=theme(qTheme); (t.deeper=t.deeper||[]).push($('#dText').value.trim()); save(); render(); });
+  on('#fT','submit',e=>{ e.preventDefault(); const name=$('#tName').value.trim(), id=slug(name)+'-'+Date.now().toString(36).slice(-3);
+    S.themes.push({id,label:name,group:$('#tGroup').value,icon:'autre',sub:'',private:$('#tPriv').checked,items:[],deeper:[]}); qType=$('#tGroup').value; qTheme=id; save(); render(); toast('Thème créé'); });
+  on('#fTy','submit',e=>{ e.preventDefault(); const n=$('#tyName').value.trim(); if(!S.types.some(t=>t.name===n)) S.types.push({name:n, short:n, icon:'autre', h:hue(n)}); qType=n; save(); render(); toast('Type créé : ajoute-lui un thème'); });
+  on('#fP','submit',e=>{ e.preventDefault(); const name=$('#pName').value.trim(); S.people.push({id:slug(name)+'-'+Date.now().toString(36).slice(-3), name, role:$('#pRole').value.trim(), kind:$('#pKind').value}); save(); render(); toast(name+' ajouté·e'); });
+  on('#savePlan','click',()=>{ S.plan=$('#plan').value; save(); toast('Programme enregistré'); });
+  on('#fPin','submit',e=>{ e.preventDefault(); const v=$('#newPin').value; if(v.length<4) return toast('Au moins 4 caractères'); S.settings.pin=pinHash(v); save(); render(); toast('Code modifié'); });
+  on('#reco','change',e=>{ S.settings.reco=e.target.checked; save(); });
+  on('#sens','input',e=>{ S.settings.sens=+e.target.value; $('#sensV').textContent=Math.round(S.settings.sens*100)+' %'; save(); });
+  on('#reset','click',()=>{ if(armed!=='reset'){ armed='reset'; return render(); } armed=''; try{localStorage.removeItem(KEY);}catch(e){} mem=null; const pin=S.settings.pin; S=seed(); S.settings.pin=pin; save(); F={mode:'home'}; render(); toast('Données réinitialisées'); });
+}
+
+/* ================================================================ suivi de tête (MediaPipe Face Mesh) */
+const cam={on:false, fm:null, stream:null, base:null, calib:[], exc:null, cool:0, rollT:0};
+const MP='https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh@0.4.1633559619/';
+function loadScript(src){ return new Promise((res,rej)=>{ const s=document.createElement('script'); s.src=src; s.crossOrigin='anonymous'; s.onload=res; s.onerror=rej; document.head.appendChild(s); }); }
+async function startCam(){
+  try{ cam.stream=await navigator.mediaDevices.getUserMedia({video:{width:320,height:240,facingMode:'user'}}); }
+  catch(e){ toast('Caméra indisponible ici : utilise les boutons ou les touches O / N / P.'); return; }
+  $('#cam').hidden=false; $('#camMsg').textContent='Chargement…';
+  try{ if(!window.FaceMesh) await loadScript(MP+'face_mesh.js'); }catch(e){ $('#camMsg').textContent='Suivi indisponible (réseau).'; return; }
+  const v=$('#vid'); v.srcObject=cam.stream; await v.play();
+  cam.fm=new FaceMesh({locateFile:f=>MP+f}); cam.fm.setOptions({maxNumFaces:1, refineLandmarks:false, minDetectionConfidence:.5, minTrackingConfidence:.5});
+  cam.fm.onResults(onFace); cam.on=true; cam.base=null; cam.calib=[]; renderTop();
+  $('#camMsg').textContent='Calibration, tête immobile…';
+  const loop=async()=>{ if(!cam.on) return; if(v.readyState>=2){ try{ await cam.fm.send({image:v}); }catch(e){} } requestAnimationFrame(loop); }; loop();
+}
+function stopCam(){ cam.on=false; cam.stream?.getTracks().forEach(t=>t.stop()); $('#cam').hidden=true; renderTop(); }
+$('#recal').onclick=()=>{ cam.base=null; cam.calib=[]; $('#camMsg').textContent='Calibration…'; };
+function onFace(r){
+  const lm=r.multiFaceLandmarks?.[0]; if(!lm){ $('#camMsg').textContent='Visage non détecté'; return; }
+  const asp=(r.image?.width||4)/(r.image?.height||3), n=lm[1], L=lm[33], R=lm[263];
+  const lx=L.x*asp, rx=R.x*asp, nx=n.x*asp, ed=Math.hypot(rx-lx,R.y-L.y), mx=(lx+rx)/2, my=(L.y+R.y)/2;
+  const roll=Math.atan2(R.y-L.y,rx-lx), c=Math.cos(-roll), s=Math.sin(-roll), vx=nx-mx, vy=n.y-my;
+  const yaw=(vx*c-vy*s)/ed, pitch=(vx*s+vy*c)/ed;
+  if(!cam.base){ cam.calib.push([yaw,pitch,roll]); if(cam.calib.length>=25){ const m=i=>cam.calib.reduce((a,v)=>a+v[i],0)/cam.calib.length; cam.base={y:m(0),p:m(1),r:m(2)}; $('#camMsg').textContent='Prêt'; } return; }
+  const k=S.settings.sens, kP=.12*k, kY=.16*k, kR=.26*k;
+  const dp=pitch-cam.base.p, dy=yaw-cam.base.y, dr=roll-cam.base.r, now=performance.now();
+  $('#mP').style.width=Math.min(100,Math.abs(dp)/kP*100)+'%'; $('#mY').style.width=Math.min(100,Math.abs(dy)/kY*100)+'%'; $('#mR').style.width=Math.min(100,Math.abs(dr)/kR*100)+'%';
+  if(now<cam.cool){ cam.exc=null; return; }
+  if(Math.abs(dr)>kR){ if(!cam.rollT) cam.rollT=now; if(now-cam.rollT>1000){ fire('parler'); cam.rollT=0; cam.cool=now+2000; } return; } else cam.rollT=0;
+  if(!cam.exc){
+    if(Math.abs(dp)>kP && Math.abs(dp)/kP>=Math.abs(dy)/kY) cam.exc={ax:'p',t:now,pp:0,py:0};
+    else if(Math.abs(dy)>kY) cam.exc={ax:'y',t:now,pp:0,py:0};
+    else if(Math.abs(dp)<kP*.3 && Math.abs(dy)<kY*.3){ cam.base.p+=.02*dp; cam.base.y+=.02*dy; cam.base.r+=.02*dr; }
+  }
+  if(cam.exc){
+    const e=cam.exc; e.pp=Math.max(e.pp,Math.abs(dp)/kP); e.py=Math.max(e.py,Math.abs(dy)/kY);
+    if(now-e.t>1600){ cam.exc=null; if(now-e.t>4000) cam.base=null; }
+    else if(Math.abs(dp)<kP*.45 && Math.abs(dy)<kY*.45){
+      cam.exc=null;
+      if(e.ax==='p' && e.pp>e.py*1.15){ fire('oui'); cam.cool=now+1200; }
+      else if(e.ax==='y' && e.py>e.pp*1.15){ fire('non'); cam.cool=now+1200; }
+    }
+  }
+}
+function fire(a){ $('#camLast').textContent=({oui:'Oui',non:'Non',parler:'Parler'}[a]); answer(a); }
+
+/* ================================================================ boot */
+render();
+setInterval(()=>{ const c=document.querySelector('.clock'); if(c){ const now=new Date(); c.innerHTML='<span class="d">'+now.toLocaleDateString('fr-FR',{weekday:'short',day:'numeric',month:'short'})+' · </span>'+fmtT(now); } },30000);
+</script>
