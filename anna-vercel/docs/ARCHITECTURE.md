@@ -100,6 +100,8 @@ anna-vercel/
 
 ### 3.3 Reconnaissance des mouvements de tête
 
+Anna tourne la tête **vers sa gauche pour dire oui** et **vers sa droite pour dire non** ; pencher la tête 1 s demande la parole. La logique oui / non a d'abord été mise au point et testée en Python avec une webcam (OpenCV + MediaPipe), puis portée telle quelle dans `head-tracking.js`.
+
 ```mermaid
 sequenceDiagram
   participant C as Caméra
@@ -107,26 +109,30 @@ sequenceDiagram
   participant H as head-tracking.js
   participant A as app.js
   C->>M: image vidéo (≈30/s)
-  M->>H: 478 points du visage
-  H->>H: nez + coins des yeux → lacet, tangage, roulis<br/>(normalisés par l'écart des yeux)
+  M->>H: matrice de pose de la tête (+ 478 points)
+  H->>H: angle gauche/droite (lacet) et inclinaison (roulis)<br/>par rapport à la position de repos
   Note over H: 25 premières images = position de repos (calibration)
-  H->>H: rotation > seuil puis retour au repos en < 1,6 s
-  alt tête tournée vers sa gauche
+  H->>H: amplitude de 0 (< 8°) à 1 (> 20°) ; score = part des 0,6 dernières secondes<br/>passée tournée d'un côté, pondérée par l'amplitude
+  alt score « oui » ≥ 60 %
     H->>A: oui
-  else tête tournée vers sa droite
+  else score « non » ≥ 60 %
     H->>A: non
   else tête penchée tenue 1 s
     H->>A: parler
+  else
+    H->>H: « pas de détection précise » (score affiché)
   end
   A->>A: même traitement qu'un appui sur le bouton
 ```
 
 - **Gestes** : tête tournée vers **sa gauche = oui**, vers **sa droite = non**, tête penchée tenue 1 s = je veux parler. Hocher ou baisser la tête n'est pas un geste.
+- **Trois états en sortie** : `oui`, `non` ou `pas de détection précise`, toujours accompagnés d'un **score** de 0 à 100 % affiché dans le panneau caméra (jauges oui / non).
+- **Hystérésis** : on entre dans oui ou non à 60 % et on en sort sous 40 %, ce qui évite les clignotements autour du seuil. Le geste est émis à l'entrée dans l'état ; Anna revient au centre avant le geste suivant.
 - **Caméra** : arrière par défaut (téléphone tenu par la personne en face d'Anna, écran vers le lecteur) ; caméra avant si la tablette est posée face à Anna. Réglage dans Admin → Réglages.
 - **Sens gauche / droite** : calculé dans l'image brute de la caméra ; si un appareil renvoie une image miroir, l'option « Inverser gauche et droite » (Admin → Réglages) corrige, enregistrée par personne.
-- **Seuils réglables** dans l'espace admin (« amplitude du mouvement », de 50 % à 160 %), enregistrés par personne.
-- **Anti-rebond** : 1,2 s de pause après un oui/non, 2 s après « parler ».
-- **Dérive lente** : la position de repos suit doucement Anna quand elle est immobile ; recalibrage automatique si la tête reste décalée plus de 4 s, ou manuel (bouton « Recalibrer »).
+- **Réglages** dans l'espace admin, enregistrés par personne : « temps de détection » (durée pendant laquelle la tête reste tournée, de 0,3 à 2 s, c'est la fenêtre du score), « amplitude du mouvement » (de 50 % à 160 %, multiplie les angles de 8° et 20°), « durée de calibration » de la position de repos (0,5 à 3 s), recalibrage au début de chaque enchaînement ou bouton « Recalibrer maintenant ».
+- **Anti-rebond** : 1 s de pause après un oui/non, 2 s après « parler ».
+- **Dérive lente** : la position de repos suit doucement Anna quand elle est immobile ; recalibrage manuel avec le bouton « Recalibrer » (pas de recalibrage automatique, qui prendrait une tête longuement tournée pour la position de repos).
 - **Chargement** : le moteur WebAssembly et le modèle (~3,6 Mo) sont téléchargés au premier clic sur « Caméra », puis mis en cache par le navigateur.
 
 ### 3.4 Écritures et hors ligne
@@ -151,6 +157,42 @@ sequenceDiagram
 ```
 
 L'identifiant de chaque échange (UUID) est créé sur la tablette : un renvoi n'enregistre jamais de doublon (`ON CONFLICT DO NOTHING`). Le nombre d'éléments en attente s'affiche dans la barre du haut.
+
+### 3.5 Mode automatisé (version 2)
+
+Deux modes, réglables dans l'espace admin et enregistrés par personne (`settings.mode`) :
+
+| Mode | Qui agit | Déroulé |
+|---|---|---|
+| **Classique** (défaut) | Une personne de l'entourage touche l'écran ; caméra en option | Accueil → grille des thèmes et pictogrammes → questions → résumé |
+| **Automatisé** | Anna seule, par la caméra ; les boutons restent utilisables | Enchaînement ci-dessous, sans toucher l'écran |
+
+```mermaid
+stateDiagram-v2
+  [*] --> Parler: démarrage (caméra lancée, recalibrage)
+  Parler: « Tu veux parler ? »
+  CaVa: « Ça va ? »
+  Theme: question du thème suivant<br/>(douleur, émotions, position, chaud / froid…)
+  Questions: questions du thème<br/>(sous-questions, intensité)
+  Resume: résumé lu à voix haute
+  Pause: pause (écran calme)
+  Parler --> CaVa: oui
+  Parler --> Pause: non
+  CaVa --> Theme: oui / non (ordre des thèmes)
+  Theme --> Questions: oui
+  Theme --> Theme: non (thème suivant)
+  Theme --> Pause: plus de thème (fin du tour)
+  Questions --> Resume: besoin trouvé
+  Questions --> Theme: rien trouvé
+  Resume --> Theme: non, ou après 10 s
+  Resume --> Questions: oui (continuer dans ce thème)
+  Pause --> Parler: délai de reprise, ou « oui »
+```
+
+- **Rappels** : sans réponse après le délai réglé (5 à 60 s), la question est relue ; après deux rappels, pause.
+- **Reprise** : après « non, pas maintenant », la fin d'un tour ou deux rappels sans réponse, l'application redemande « Tu veux parler ? » après le délai de reprise (10 s à 5 min), ou dès un « oui » de la tête.
+- **Tour** : chaque thème n'est proposé qu'une fois par tour (`auto.visited`), dans l'ordre des priorités donné par la réponse au « Ça va ? ».
+- **Mise en œuvre** : tout est dans `public/app.js` (`isAuto()`, `autoWatch`, `autoRemind`, `autoRest`, `resumeScan`) ; les réponses passent par la même fonction `answer()` et les mêmes écritures API que le mode classique. Les réglages sont validés à un seul endroit, `normalizeSettings()` dans `lib/content.js`, utilisé par `api/admin.js`, la démo et le bootstrap ; stockés dans la colonne JSON `patients.settings`, sans migration.
 
 ---
 

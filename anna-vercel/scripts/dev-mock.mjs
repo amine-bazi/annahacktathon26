@@ -4,10 +4,11 @@
 import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
 import { extname, join, normalize } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { createDemoBackend } from '../lib/demo-backend.js';
 
 const PORT = Number(process.env.PORT) || 3000;
-const ROOT = new URL('../public/', import.meta.url).pathname;
+const ROOT = fileURLToPath(new URL('../public/', import.meta.url));   // décodé : le chemin peut contenir des espaces
 const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.css': 'text/css', '.webmanifest': 'application/manifest+json', '.svg': 'image/svg+xml' };
 const backend = createDemoBackend();
 

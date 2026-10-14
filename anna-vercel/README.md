@@ -53,7 +53,17 @@ Puis ouvrir http://localhost:3000/?cle=demo. Les données sont en mémoire et re
   - **tête tournée vers sa droite = non**
   - pencher la tête et tenir 1 s = je veux parler
   Caméra arrière par défaut (téléphone tenu face à Anna) ; caméra avant pour une tablette posée face à elle : Admin → Réglages. Si l'image est inversée : « Inverser gauche et droite ».
+  Le panneau caméra affiche en continu l'état détecté, **oui**, **non** ou **pas de détection précise**, avec un score de 0 à 100 % ; la réponse part quand la tête reste tournée environ une demi-seconde.
 - Le lien d'installation est un secret : quiconque l'a peut lire les échanges. En cas d'appareil perdu : Admin → Réglages → **Générer un nouveau lien**.
+
+## Version 2 : deux modes de réponse
+
+Réglable dans Admin → Réglages → « Mode de réponse », enregistré par personne.
+
+- **Mode classique** (par défaut) : une personne de l'entourage touche l'écran (thèmes, pictogrammes, boutons Non · Parler · Oui). La caméra est une option, activée par le bouton « Caméra ».
+- **Mode automatisé** : la caméra démarre toute seule et l'application enchaîne les questions sans que personne ne touche l'écran : « Tu veux parler ? » → « Ça va ? » → une question par thème (douleur, émotions, position, chaud / froid… dans l'ordre des priorités) → un « oui » ouvre les questions du thème → résumé → thème suivant. Sans réponse, la question est répétée deux fois, puis l'application fait une pause et redemande « Tu veux parler ? » après le délai de reprise. Pencher la tête 1 s demande toujours la parole, et les boutons restent utilisables.
+
+Réglages de la caméra (Admin → Réglages → « Caméra et mouvements de tête ») : **temps de détection** (durée pendant laquelle la tête doit rester tournée, de 0,3 à 2 s), amplitude du mouvement, **durée de calibration** de la position de repos, recalibrage automatique au début de chaque enchaînement, bouton « Recalibrer maintenant », caméra avant ou arrière, inversion gauche / droite.
 
 ## Données de santé
 

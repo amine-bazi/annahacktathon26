@@ -5,6 +5,7 @@
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import { parseArgs } from 'node:util';
+import { fileURLToPath } from 'node:url';
 
 const root = new URL('../', import.meta.url);
 const read = p => readFile(new URL(p, root), 'utf8');
@@ -38,7 +39,7 @@ ${body.trim()}
 ${code}
 </script>
 `;
-const target = resolve(new URL('.', root).pathname, values.out);
+const target = resolve(fileURLToPath(new URL('.', root)), values.out);   // décodé : le chemin peut contenir des espaces
 await mkdir(dirname(target), { recursive: true });
 await writeFile(target, out);
 console.log(`Prototype généré : ${target} (${Math.round(out.length / 1024)} Ko)`);

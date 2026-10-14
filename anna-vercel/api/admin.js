@@ -4,7 +4,7 @@
 import { randomBytes } from 'node:crypto';
 import { sql } from '../lib/db.js';
 import { getPatient, isAdmin, hashPin, newDeviceKey, hashDeviceKey } from '../lib/auth.js';
-import { slug, PEOPLE_KINDS } from '../lib/content.js';
+import { slug, PEOPLE_KINDS, normalizeSettings } from '../lib/content.js';
 import { send, handle, HttpError, str, int } from '../lib/http.js';
 
 const suffix = () => randomBytes(3).toString('hex');
@@ -101,7 +101,7 @@ const actions = {
     await sql`UPDATE patients SET daily_plan = ${str(b.plan, 4000, { optional: true })} WHERE id = ${p.id}`;
   },
   async 'save-settings'(p, b) {
-    const settings = { reco: b.reco !== false, sens: Math.min(1.6, Math.max(0.5, Number(b.sens) || 1)), swap: !!b.swap, cam: b.cam === 'user' ? 'user' : 'environment' };
+    const settings = normalizeSettings(b);
     await sql`UPDATE patients SET settings = ${JSON.stringify(settings)}::jsonb WHERE id = ${p.id}`;
   },
   async 'change-pin'(p, b) {

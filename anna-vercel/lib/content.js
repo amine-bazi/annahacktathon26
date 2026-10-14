@@ -6,6 +6,24 @@ export const slug = s => String(s).normalize('NFD').replace(/[̀-ͯ]/g, '')
 
 export const PEOPLE_KINDS = ['Proches', 'Équipe', 'Rencontres'];
 
+/** Réglages par personne : valeurs par défaut et bornes, partagés par l'API, la démo et le front. */
+const num = (v, min, max, d) => { if (v == null || v === '') return d; const n = Number(v); return Number.isFinite(n) ? Math.min(max, Math.max(min, n)) : d; };
+export function normalizeSettings(s) {
+  s = s || {};
+  return {
+    reco: s.reco !== false,                            // poser d'abord les questions les plus efficaces
+    sens: num(s.sens, 0.5, 1.6, 1),                     // amplitude du mouvement de tête (multiplie les angles)
+    swap: !!s.swap,                                     // inverser gauche et droite
+    cam: s.cam === 'user' ? 'user' : 'environment',     // caméra avant ou arrière
+    mode: s.mode === 'auto' ? 'auto' : 'classique',     // classique (une personne touche l'écran) ou automatisé (caméra)
+    hold: num(s.hold, 0.3, 2, 0.6),                     // temps de détection (s) : durée pendant laquelle la tête reste tournée
+    calib: num(s.calib, 0.5, 3, 1),                     // durée de calibration de la position de repos (s)
+    recal: s.recal !== false,                           // recalibrer au début de chaque enchaînement (mode automatisé)
+    autoRepeat: num(s.autoRepeat, 5, 60, 20),           // mode automatisé : rappel de la question si pas de réponse (s)
+    autoPause: num(s.autoPause, 10, 300, 60),           // mode automatisé : reprise après « pas maintenant » ou fin du tour (s)
+  };
+}
+
 /** Aplati le contenu par défaut (lib/defaults.js) en lignes prêtes à insérer. */
 export function flattenDefaults(types, themes) {
   const rows = { types: [], themes: [], questions: [], followups: [] };
@@ -59,7 +77,7 @@ export function buildBootstrap({ patient, types, themes, questions, followups, p
   return {
     patientName: patient.display_name,
     plan: patient.daily_plan || '',
-    settings: { reco: patient.settings?.reco !== false, sens: Number(patient.settings?.sens) || 1, swap: !!patient.settings?.swap, cam: patient.settings?.cam === 'user' ? 'user' : 'environment' },
+    settings: normalizeSettings(patient.settings),
     hasPin: !!patient.admin_pin_hash,
     isAdmin: !!isAdmin,
     types: types.map(t => ({ id: t.id, name: t.name, short: t.short_label, icon: t.icon, h: t.hue })),

@@ -19,6 +19,15 @@ const PERSON_FOLLOW = [
 const KINDS = [['Proches', 'Proche (famille, ami)'], ['Équipe', 'Équipe soignante'], ['Rencontres', 'Personne croisée']];
 const GROUPS = [['E', 'S', 'A', 'I', 'N', 'T', 'R', 'U', 'L'], ['O', 'D', 'C', 'M', 'P', 'G', 'B', 'V', 'H'], ['F', 'Q', 'J', 'X', 'Y', 'Z', 'K', 'W', '’'], ['ESPACE', 'EFFACER', 'TERMINER', 'ANNULER']];
 const GESTURES = 'Tête à gauche = oui · tête à droite = non · pencher 1 s = parler';
+// Question d'entrée de chaque thème dans l'enchaînement (sinon « C’est à propos de : … ? »).
+const THEME_Q = {
+  douleur: 'Tu as mal quelque part ?', emotions: 'Tu veux parler de comment tu te sens ?', position: 'Tu veux changer de position ou être mieux installée ?',
+  temp: 'Tu as trop chaud ou trop froid ?', soif: 'Tu veux boire ou manger ?', hygiene: 'Tu as besoin d’un soin ou de ta toilette ?',
+  interaction: 'Tu veux poser une question à quelqu’un ?', dire: 'Tu veux dire quelque chose ?', proches: 'C’est à propos d’un proche ?',
+  personnes: 'C’est à propos d’une personne du centre ?', passerelle: 'C’est à propos du centre, de l’équipe ou du matériel ?',
+  journee: 'C’est à propos de ta journée ?', activites: 'Tu veux faire une activité ?', autre: 'Tu veux parler d’autre chose ?', intime: 'C’est quelque chose de privé ?',
+};
+const themeQ = t => THEME_Q[t.id] || `C’est à propos de : ${t.label} ?`;
 
 // Pictogramme de chaque question, déduit de son mot-clé (premier motif trouvé), sinon celui du thème.
 const ICON_RULES = [
@@ -114,6 +123,16 @@ let S = null;          // données de la personne (banque, personnes, historique
 let F = { mode: 'home' }, undo = [], view = 'patient', topCache = [];
 let voice = store.get(K_VOICE, false);
 
+// Mode automatisé : l'enchaînement est piloté par les réponses d'Anna (caméra), sans personne pour toucher l'écran.
+//   « Tu veux parler ? » → « Ça va ? » → une question par thème (douleur, émotions, position, chaud / froid…)
+//   → « oui » ouvre les questions du thème → résumé → thème suivant… puis pause et on recommence.
+// Sans réponse, la question est répétée (deux fois), puis l'application fait une pause avant de reprendre.
+const AUTO_DONE_S = 10;   // secondes d'affichage du résumé avant de passer au thème suivant
+const auto = { timer: 0, reminders: 0, visited: new Set() };
+const isAuto = () => S?.settings.mode === 'auto';
+function autoArm(fn, s) { autoClear(); auto.timer = setTimeout(() => { auto.timer = 0; fn(); }, s * 1000); }
+function autoClear() { if (auto.timer) clearTimeout(auto.timer); auto.timer = 0; }
+
 async function reload() { S = await api('GET', '/api/data?action=bootstrap'); }
 
 /* ================================================================ utilitaires */
@@ -125,6 +144,7 @@ const hue = s => [...String(s)].reduce((a, c) => a + c.charCodeAt(0) * 7, 0) % 3
 const typeOf = id => S.types.find(t => t.id === id) || { id, name: id, short: id, icon: 'autre', h: hue(id) };
 const iconFor = t => t.private ? 'intime' : document.getElementById('i-' + t.icon) ? t.icon : 'autre';
 const fmtT = ts => new Date(ts).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+const fmtS = s => Number(s).toFixed(1).replace('.', ',') + ' s';
 const fmtD = ts => {
   const d = new Date(ts), t = new Date(), y = new Date(); y.setDate(t.getDate() - 1);
   if (d.toDateString() === t.toDateString()) return 'Auj.';
@@ -263,10 +283,13 @@ function startItem(themeId, itemId) {
   F = { mode: 'q', theme: themeId, stack: [{ list: [it], idx: 0 }], path: [t.label], asked: [], t0: Date.now(), priv: !!t.private || !!it.private, urgent: false, single: true };
   undo = []; showQ();
 }
+// Balayage des thèmes : une question d'entrée par thème, dans l'ordre des priorités (réponse au « Ça va ? »).
+// En mode automatisé, les thèmes déjà proposés dans ce tour sont sautés.
 function startScan() {
   const p = prio(), rank = t => { const i = p.indexOf(t.id); return i < 0 ? p.length : i; };
-  const list = S.themes.filter(t => themeItems(t).length).map(t => ({ t, u: S.history.filter(e => e.theme === t.id).length })).sort((a, b) => rank(a.t) - rank(b.t) || b.u - a.u)
-    .map(({ t }) => ({ id: 'scan.' + t.id, l: t.label, q: `C’est à propos de : ${t.label} ?`, goto: t.id }));
+  const list = S.themes.filter(t => themeItems(t).length && !(isAuto() && auto.visited.has(t.id))).map(t => ({ t, u: S.history.filter(e => e.theme === t.id).length })).sort((a, b) => rank(a.t) - rank(b.t) || b.u - a.u)
+    .map(({ t }) => ({ id: 'scan.' + t.id, l: t.label, q: themeQ(t), goto: t.id }));
+  if (!list.length) return isAuto() ? autoEndCycle() : goHome();
   F = { mode: 'q', theme: 'scan', stack: [{ list, idx: 0 }], path: ['Choix du thème'], asked: [], t0: Date.now(), priv: false };
   undo = []; showQ();
 }
@@ -281,28 +304,49 @@ function startQuick(sg) {
   undo = []; showQ();
 }
 function showPlan() { F = { mode: 'done', theme: 'journee', path: ['Ma journée', 'Programme du jour'], result: 'resolu', action: 'planning', entryNotes: [], priv: false, quick: true }; render(); speak('Voici le programme de ta journée.'); }
-function showQ() { F.qTs = Date.now(); render(); speak(cur().q); }
+function showQ() { F.qTs = Date.now(); render(); speak(cur().q, isAuto()); autoWatch(cur().q); }
 
 // Ouverture en deux questions : « Coucou, est-ce que tu veux parler ? » puis « Ça va ? ».
 const INTRO = ['hello', 'welcome', 'rest'];
-function showHello() { F = { mode: 'hello' }; undo = []; render(); speak('Coucou, est-ce que tu veux parler ?'); }
-function showWelcome() { F = { mode: 'welcome' }; undo = []; render(); speak(`${name()}, ça va ?`); }
+function showHello() {
+  F = { mode: 'hello' }; undo = []; render(); speak('Coucou, est-ce que tu veux parler ?', isAuto());
+  if (isAuto()) { auto.visited.clear(); if (S.settings.recal && tracker.running) tracker.recalibrate(); autoWatch('Coucou, est-ce que tu veux parler ?'); }
+}
+function showWelcome() { F = { mode: 'welcome' }; undo = []; render(); speak(`${name()}, ça va ?`, isAuto()); autoWatch(`${name()}, ça va ?`); }
+
+// Mode automatisé : si Anna ne répond pas, la question est répétée (deux fois), puis on fait une pause.
+function autoWatch(text) { if (!isAuto()) return; auto.reminders = 0; autoArm(() => autoRemind(text), S.settings.autoRepeat); }
+function autoRemind(text) {
+  if (!isAuto() || view !== 'patient' || !['q', 'hello', 'welcome'].includes(F.mode)) return;
+  if (++auto.reminders > 2) return autoRest('Je te laisse tranquille un moment.');
+  speak(text, true); autoArm(() => autoRemind(text), S.settings.autoRepeat);
+}
+// Pause : écran calme, puis on redemande « Tu veux parler ? » après le délai de reprise (ou dès un « oui »).
+function autoRest(phrase) {
+  auto.visited.clear(); F = { mode: 'rest' }; undo = []; render();
+  if (phrase) speak(phrase, true);
+  autoArm(showHello, S.settings.autoPause);
+}
+function autoEndCycle() { autoRest('Merci. Je te redemande dans un moment.'); }
+function resumeScan() { if (!isAuto()) return goHome(); startScan(); }
 function answer(a) {
   // Sur l'accueil, ni boutons ni caméra : oui / non / parler ne servent qu'à répondre aux questions.
   if (F.mode === 'home') return;
+  if (view === 'patient') autoClear();   // une réponse annule le rappel ou la reprise automatique en attente
   if (INTRO.includes(F.mode) && a !== 'parler') {
     if (view !== 'patient') return;
     flash(a); sayAnswer(a);
-    if (F.mode === 'rest') { if (a === 'oui') showHello(); return; }
+    if (F.mode === 'rest') { if (a === 'oui') showHello(); else if (isAuto()) autoArm(showHello, S.settings.autoPause); return; }
     if (F.mode === 'hello') {
       record(newEntry('accueil', ['Tu veux parler ?', a === 'oui' ? 'Oui' : 'Non'], 'resolu'));
       if (a === 'oui') return showWelcome();
+      if (isAuto()) return autoRest();
       F = { mode: 'rest' }; return render();
     }
     mood = a === 'oui' ? 'ok' : 'ko';
     record(newEntry('accueil', ['Ça va ?', a === 'oui' ? 'Oui' : 'Non'], 'resolu'));
     boardPage = 0; boardTheme = null;
-    return goHome();
+    return isAuto() ? startScan() : goHome();   // automatisé : les thèmes s'enchaînent sans toucher l'écran
   }
   flash(a);
   if ($('#ovRoot').firstChild) { if (a === 'parler') return; closeOv(); }
@@ -315,10 +359,11 @@ function answer(a) {
     if (F.entry) { F.entry.notes.push([F.dq, a]); enqueue('note', { conversationId: F.entry.id, question: F.dq, answer: a }); }
     F.mode = 'done'; render(); return;
   }
-  if (F.mode === 'done') { if (a === 'oui') { (F.theme === 'scan' || F.theme === 'parler' || F.quick) ? startScan() : startTheme(F.theme); } else goHome(); return; }
+  if (F.mode === 'done') { if (a === 'oui') { (F.theme === 'scan' || F.theme === 'parler' || F.quick) ? startScan() : startTheme(F.theme); } else if (isAuto()) resumeScan(); else goHome(); return; }
   if (F.mode !== 'q') return;
   undo.push(JSON.stringify(F));
   const it = cur(), rt = Date.now() - F.qTs;
+  if (isAuto() && it.goto) auto.visited.add(it.goto);   // thème proposé dans ce tour (oui ou non)
   if (!F.priv && !it.private && it.id !== 'quick' && !it.id.startsWith('scan.')) {
     const x = st(it.id); x.a++; x[a === 'oui' ? 'y' : 'n']++; x.rt += rt;
     enqueue('events', { events: [{ key: it.id, theme: F.theme, answer: a, ms: rt, at: Date.now() }] });
@@ -335,6 +380,7 @@ function answer(a) {
   const top = F.stack[F.stack.length - 1]; top.idx++;
   if (top.idx >= top.list.length) {
     if (F.quick || (F.single && F.stack.length === 1)) return goHome();
+    if (isAuto() && F.theme === 'scan') return autoEndCycle();   // tous les thèmes ont été proposés : fin du tour
     return conclude(F.stack.length > 1 ? 'resolu' : 'non-trouve');
   }
   showQ();
@@ -355,9 +401,11 @@ function conclude(result, it) {
     record(F.entry);
   }
   render();
-  if (F.ask) return speak(F.ask, true);
-  speak((result === 'non-trouve' ? 'Je n’ai pas trouvé. Tu veux épeler ?' : 'Compris : ' + F.path.slice(1).join(', ') + '.') + ' Autre chose ?');
-  if (F.urgent) chime();
+  if (F.ask) speak(F.ask, true);
+  else if (isAuto() && result === 'non-trouve') speak('D’accord, on passe à autre chose.', true);
+  else { speak((result === 'non-trouve' ? 'Je n’ai pas trouvé. Tu veux épeler ?' : 'Compris : ' + F.path.slice(1).join(', ') + '.') + ' Autre chose ?', isAuto()); if (F.urgent) chime(); }
+  // Mode automatisé : la suite (thème suivant) arrive toute seule, sauf si Anna répond avant.
+  if (isAuto()) autoArm(resumeScan, result === 'non-trouve' ? 4 : AUTO_DONE_S);
 }
 function back() {
   if (F.mode === 'spell' || F.mode === 'home') return goHome();
@@ -412,7 +460,7 @@ function closeOv() { $('#ovRoot').innerHTML = ''; }
 document.addEventListener('click', e => {
   const b = e.target.closest('[data-ov]'); if (!b) return;
   const k = b.dataset.ov; closeOv();
-  if (k === 'close') return render();
+  if (k === 'close') { render(); if (isAuto() && F.mode === 'q') autoWatch(cur().q); return; }
   view = 'patient';
   if (k === 'spell') startSpell(['Message']); else if (k === 'scan') startScan(); else if (k === 'proches') startTheme('proches');
 });
@@ -431,7 +479,7 @@ function render() {
 function renderTop() {
   const now = new Date(), nav = view === 'patient' && F.mode !== 'home';
   $('#top').innerHTML = `
-    <div class="who"><b>${esc(name())}</b><span class="clock">${now.toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' })} · ${fmtT(now)}</span><span id="sync"></span></div>
+    <div class="who"><b>${esc(name())}</b>${isAuto() ? '<span class="pill t" title="Mode automatisé : enchaînement de questions, réponses par la caméra">Auto</span>' : ''}<span class="clock">${now.toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' })} · ${fmtT(now)}</span><span id="sync"></span></div>
     ${nav && !INTRO.includes(F.mode) ? `<button class="ib nav-b" id="tBack" aria-label="Retour">${ic('back')}<span class="lb">Retour</span></button>` : ''}
     ${view === 'patient' && F.mode !== 'hello' ? `<button class="ib nav-b" id="tHome" aria-label="Accueil : Coucou, est-ce que tu veux parler ?">${ic('home')}<span class="lb">Accueil</span></button>` : ''}
     <button class="ib ${tracker.running ? 'on' : ''}" id="tCam" aria-label="Caméra" title="${GESTURES}">${ic('cam')}<span class="lb">${tracker.running ? 'Tête active' : 'Caméra'}</span></button>
@@ -494,12 +542,14 @@ function renderBoard() {
   const shown = rows.slice(boardPage * perPage, (boardPage + 1) * perPage);
   return `<div class="page">${note}<div class="prows" style="grid-template-rows:repeat(${perPage},minmax(0,1fr))">${shown.join('')}</div>${pager(boardPage, pages, 'prevPage', 'nextPage')}</div>`;
 }
+// Mode automatisé : état de la caméra sur les écrans d'ouverture, avec un bouton si elle n'a pas pu démarrer.
+const autoLine = () => isAuto() ? `<p class="muted autoline">${ic('cam')} Mode automatisé · ${tracker.running ? 'caméra active' : 'caméra inactive'}${tracker.running ? '' : ' <button class="btn sm" data-act="cam">Activer la caméra</button>'}</p>` : '';
 // Tout premier écran : « Coucou, est-ce que tu veux parler ? » en oui / non.
 function renderHello() {
   return `<div class="welcome">
     <p class="tag">${esc(name())}</p>
     <h1 class="q hello">Coucou, est-ce que tu veux parler ?</h1>
-    <p class="muted">${GESTURES}</p>
+    <p class="muted">${GESTURES}</p>${autoLine()}
     <div class="wbtns">
       <button class="wb no" data-act="hNon">${ic('calme')}<span>Non, pas maintenant</span></button>
       <button class="wb yes" data-act="hOui">${ic('talk')}<span>Oui, je veux parler</span></button>
@@ -511,7 +561,7 @@ function renderHello() {
 function renderRest() {
   return `<div class="welcome">
     <h1 class="q hello">D’accord, pas maintenant.</h1>
-    <p class="muted" style="font-size:16px">On reste là. Touche « Reprendre » ou fais oui de la tête quand tu veux.</p>
+    <p class="muted" style="font-size:16px">${isAuto() ? 'Je te redemande dans un moment. Fais oui de la tête pour reprendre tout de suite.' : 'On reste là. Touche « Reprendre » ou fais oui de la tête quand tu veux.'}</p>
     <button class="btn primary" data-act="hello" style="font-size:18px;padding:14px 22px">${ic('talk')} Reprendre</button>
   </div>`;
 }
@@ -520,7 +570,7 @@ function renderWelcome() {
   return `<div class="welcome">
     <p class="tag">${esc(name())}</p>
     <h1 class="q">Ça va ?</h1>
-    <p class="muted">${GESTURES}</p>
+    <p class="muted">${GESTURES}</p>${autoLine()}
     <div class="wbtns">
       <button class="wb no" data-act="wNon">${ic('triste')}<span>Non, ça ne va pas</span></button>
       <button class="wb yes" data-act="wOui">${ic('content')}<span>Oui, ça va</span></button>
@@ -571,7 +621,7 @@ function renderDone() {
       ${F.result === 'non-trouve' ? `<div><button class="btn primary" data-act="spellctx">${ic('spell')} Épeler avec ${esc(name())}</button></div>` : ''}
       ${F.entryNotes.length ? `<ul class="notes">${F.entryNotes.map(([q, a]) => `<li><span>${esc(q)}</span><span class="${a === 'oui' ? 'ans-y' : 'ans-n'}">${a === 'oui' ? 'Oui' : 'Non'}</span></li>`).join('')}</ul>` : ''}
       <p class="next">Autre chose, ${esc(name())} ?</p>
-      <span class="muted" style="font-size:13.5px">Oui : continuer dans ce thème · Non : accueil</span>
+      <span class="muted" style="font-size:13.5px">${isAuto() ? 'Oui : continuer dans ce thème · Non : thème suivant · sinon la suite arrive toute seule' : 'Oui : continuer dans ce thème · Non : accueil'}</span>
     </div>
     ${dl.length ? `<div class="deeper"><h3>${ic('deeper')} Pour aller plus loin</h3>
       <p>Pour l’entourage : touche une question pour la poser à ${esc(name())}.</p>
@@ -601,7 +651,7 @@ $('#main').addEventListener('click', e => {
     if (a === 'scan') startScan(); else if (a === 'spell') startSpell(['Message']); else if (a === 'plan') showPlan();
     else if (a === 'themeScan') startTheme(b.dataset.th);
     else if (a === 'wOui' || a === 'hOui') answer('oui'); else if (a === 'wNon' || a === 'hNon') answer('non'); else if (a === 'wSkip') { mood = null; goHome(); }
-    else if (a === 'hello') showHello();
+    else if (a === 'hello') showHello(); else if (a === 'cam') toggleCam();
     else if (a === 'openTheme') { boardTheme = b.dataset.th; themePage = 0; render(); }
     else if (a === 'closeTheme') { boardTheme = null; render(); }
     else if (a === 'nextPage') { boardPage++; render(); } else if (a === 'prevPage') { boardPage = Math.max(0, boardPage - 1); render(); }
@@ -641,6 +691,7 @@ function readPhoto(file) {
 }
 
 function openAdmin() {
+  autoClear();   // pas de rappel ni de reprise automatique pendant les réglages
   if (S.isAdmin) { view = 'admin'; return render(); }
   const create = !S.hasPin;
   $('#ovRoot').innerHTML = `<div class="ov" role="dialog" aria-modal="true" aria-labelledby="lkT"><form class="ovc lock" id="lockF">
@@ -666,7 +717,8 @@ function openAdmin() {
   };
 }
 async function leaveAdmin() {
-  view = 'patient'; S.isAdmin = false; newKey = ''; render();
+  view = 'patient'; S.isAdmin = false; newKey = '';
+  if (isAuto()) showHello(); else render();   // automatisé : l'enchaînement repart du début
   try { await api('POST', '/api/auth?action=logout'); toast('Espace admin verrouillé'); } catch { /* la session expirera d'elle-même */ }
 }
 async function adm(action, payload, okMsg) {
@@ -770,10 +822,23 @@ function admSettings() {
   return `<div class="card"><h3>Programme du jour</h3>
       <textarea id="plan" aria-label="Programme du jour" maxlength="4000">${esc(S.plan)}</textarea>
       <div style="margin-top:8px;display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap"><span class="muted" style="font-size:13px">Une ligne par moment : HH:MM activité</span><button class="btn primary" id="savePlan">Enregistrer</button></div></div>
-    <div class="card"><h3>Mouvements de tête</h3>
+    <div class="card"><h3>Mode de réponse</h3>
+      <div class="fgrid">
+        <label class="fl">Mode<select id="modeSel">
+          <option value="classique" ${S.settings.mode !== 'auto' ? 'selected' : ''}>Classique : une personne touche l’écran, la caméra en option</option>
+          <option value="auto" ${S.settings.mode === 'auto' ? 'selected' : ''}>Automatisé : enchaînement de questions, réponses de ${esc(name())} par la caméra</option></select></label>
+        <p class="muted" style="margin:0;font-size:14px">Automatisé : « Tu veux parler ? », « Ça va ? », puis une question par thème (douleur, émotions, position, chaud / froid…) ; un « oui » ouvre les questions du thème. Sans réponse, la question est répétée, puis l’application fait une pause avant de reprendre.</p>
+        <label class="fl">Rappel de la question si pas de réponse après : <b id="repV">${S.settings.autoRepeat} s</b><input type="range" id="autoRepeat" min="5" max="60" step="5" value="${S.settings.autoRepeat}"></label>
+        <label class="fl">Reprise après « pas maintenant » ou fin du tour : <b id="pauseV">${S.settings.autoPause} s</b><input type="range" id="autoPause" min="10" max="300" step="10" value="${S.settings.autoPause}"></label>
+      </div></div>
+    <div class="card"><h3>Caméra et mouvements de tête</h3>
       <div class="fgrid">
         <p class="muted" style="margin:0;font-size:14px">${GESTURES}.</p>
+        <label class="fl">Temps de détection (tête tournée) : <b id="holdV">${fmtS(S.settings.hold)}</b><input type="range" id="hold" min="0.3" max="2" step="0.1" value="${S.settings.hold}"></label>
         <label class="fl">Amplitude du mouvement : <b id="sensV">${Math.round(S.settings.sens * 100)} %</b><input type="range" id="sens" min="0.5" max="1.6" step="0.05" value="${S.settings.sens}"></label>
+        <label class="fl">Durée de calibration de la position de repos : <b id="calibV">${fmtS(S.settings.calib)}</b><input type="range" id="calib" min="0.5" max="3" step="0.1" value="${S.settings.calib}"></label>
+        <label class="ck"><input type="checkbox" id="recalAuto" ${S.settings.recal ? 'checked' : ''}> Recalibrer au début de chaque enchaînement (mode automatisé)</label>
+        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><button class="btn" id="recalNow" type="button">${ic('cam')} Recalibrer maintenant</button><span class="muted" style="font-size:13px">${tracker.running ? `Caméra active : ${esc(name())} regarde droit devant pendant la calibration.` : 'Active d’abord la caméra (bouton « Caméra » en haut).'}</span></div>
         <label class="fl">Caméra utilisée<select id="camSel">
           <option value="environment" ${S.settings.cam !== 'user' ? 'selected' : ''}>Arrière : téléphone tenu par la personne en face de ${esc(name())}</option>
           <option value="user" ${S.settings.cam === 'user' ? 'selected' : ''}>Avant : écran tourné vers ${esc(name())} (tablette posée)</option></select></label>
@@ -825,6 +890,17 @@ function bindAdmin() {
   on('#swap', 'change', e => adm('save-settings', { ...S.settings, swap: e.target.checked }, e.target.checked ? 'Gauche et droite inversées' : 'Sens normal'));
   on('#sens', 'input', e => { $('#sensV').textContent = Math.round(e.target.value * 100) + ' %'; });
   on('#sens', 'change', e => adm('save-settings', { ...S.settings, sens: +e.target.value }, 'Amplitude enregistrée'));
+  on('#modeSel', 'change', async e => { const mode = e.target.value; await adm('save-settings', { ...S.settings, mode }, mode === 'auto' ? 'Mode automatisé : l’enchaînement démarre en quittant l’espace admin' : 'Mode classique activé'); if (mode === 'auto' && !tracker.running) toggleCam(); });
+  on('#hold', 'input', e => { $('#holdV').textContent = fmtS(e.target.value); });
+  on('#hold', 'change', e => adm('save-settings', { ...S.settings, hold: +e.target.value }, 'Temps de détection enregistré'));
+  on('#calib', 'input', e => { $('#calibV').textContent = fmtS(e.target.value); });
+  on('#calib', 'change', e => adm('save-settings', { ...S.settings, calib: +e.target.value }, 'Durée de calibration enregistrée'));
+  on('#recalAuto', 'change', e => adm('save-settings', { ...S.settings, recal: e.target.checked }));
+  on('#recalNow', 'click', () => { if (!tracker.running) return toast('Active d’abord la caméra.'); tracker.recalibrate(); toast('Recalibration : tête immobile, regard droit devant…'); });
+  on('#autoRepeat', 'input', e => { $('#repV').textContent = e.target.value + ' s'; });
+  on('#autoRepeat', 'change', e => adm('save-settings', { ...S.settings, autoRepeat: +e.target.value }, 'Délai de rappel enregistré'));
+  on('#autoPause', 'input', e => { $('#pauseV').textContent = e.target.value + ' s'; });
+  on('#autoPause', 'change', e => adm('save-settings', { ...S.settings, autoPause: +e.target.value }, 'Délai de reprise enregistré'));
   on('#fPin', 'submit', e => { e.preventDefault(); adm('change-pin', { pin: $('#newPin').value }, 'Code modifié'); });
   on('#demoReset', 'click', () => confirmOr('reset', async () => { DEMO.reset(); armed = ''; await reload(); S.isAdmin = false; view = 'patient'; F = { mode: 'home' }; render(); toast('Données d’exemple remises'); }));
   on('#rotate', 'click', () => confirmOr('rotate', async () => {
@@ -843,7 +919,9 @@ const tracker = createHeadTracker({
   getSensitivity: () => S?.settings.sens || 1,
   getSwap: () => !!S?.settings.swap,
   getFacing: () => S?.settings.cam || 'environment',
-  onStatus: msg => { $('#camMsg').textContent = msg; },
+  getHold: () => S?.settings.hold || 0.6,
+  getCalib: () => S?.settings.calib || 1,
+  onStatus: (msg, etat) => { const el = $('#camMsg'); el.textContent = msg; el.dataset.etat = etat || ''; },
   onMeters: (yes, no, talk) => { $('#mP').style.width = Math.min(100, yes * 100) + '%'; $('#mY').style.width = Math.min(100, no * 100) + '%'; $('#mR').style.width = Math.min(100, talk * 100) + '%'; },
   onGesture: g => { $('#camLast').textContent = { oui: 'Oui', non: 'Non', parler: 'Parler' }[g]; answer(g); },
 });
@@ -879,6 +957,7 @@ async function boot() {
   }
   document.title = `Parler avec ${name()}`;
   showHello();
+  if (isAuto()) toggleCam();   // mode automatisé : la caméra démarre toute seule
   flush();
   setInterval(() => { const c = document.querySelector('.clock'); if (c) { const now = new Date(); c.textContent = now.toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' }) + ' · ' + fmtT(now); } }, 30000);
 }

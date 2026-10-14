@@ -2,7 +2,7 @@
 // (et, dans le navigateur, dans localStorage). Sert au serveur local (scripts/dev-mock.mjs)
 // et au prototype autonome en un fichier (scripts/build-prototype.mjs).
 // Aucune sécurité réelle ici : c'est un outil de démonstration.
-import { flattenDefaults, buildBootstrap, slug, PEOPLE_KINDS } from './content.js';
+import { flattenDefaults, buildBootstrap, slug, PEOPLE_KINDS, normalizeSettings } from './content.js';
 import { TYPES, THEMES, DEMO_PEOPLE, DEFAULT_PLAN } from './defaults.js';
 
 class DemoError extends Error { constructor(status, message) { super(message); this.status = status; } }
@@ -56,7 +56,7 @@ function freshDb(withExamples) {
   const ex = withExamples ? exampleData(rows.questions) : { history: [], base: {} };
   return {
     v: 3,
-    patient: { id: 'demo', display_name: 'Anna', admin_pin: null, daily_plan: DEFAULT_PLAN, settings: { reco: true, sens: 1 } },
+    patient: { id: 'demo', display_name: 'Anna', admin_pin: null, daily_plan: DEFAULT_PLAN, settings: normalizeSettings({}) },
     types: rows.types, themes: rows.themes, questions: rows.questions,
     followups: rows.followups.map((f, i) => ({ ...f, id: i + 1 })),
     people: DEMO_PEOPLE.map((p, i) => ({ ...p, id: slug(p.name), position: i })),
@@ -158,7 +158,7 @@ export function createDemoBackend({ load = () => null, save = () => {}, withExam
     'delete-person': b => { db.people = db.people.filter(p => p.id !== b.id); },
     'set-person-photo': b => { const p = db.people.find(x => x.id === b.id); if (p) p.photo = b.photo || null; },
     'save-plan': b => { db.patient.daily_plan = String(b.plan || ''); },
-    'save-settings': b => { db.patient.settings = { reco: b.reco !== false, sens: Math.min(1.6, Math.max(0.5, Number(b.sens) || 1)), swap: !!b.swap, cam: b.cam === 'user' ? 'user' : 'environment' }; },
+    'save-settings': b => { db.patient.settings = normalizeSettings(b); },
     'change-pin': b => { if ((b.pin || '').length < 4) throw new DemoError(400, 'Au moins 4 caractères'); db.patient.admin_pin = b.pin; },
     'rotate-device-key': () => { deviceKey = sfx() + sfx(); return { key: deviceKey }; },
   };
