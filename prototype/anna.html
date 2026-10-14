@@ -1359,14 +1359,14 @@ function renderTop() {
   const now = new Date(), nav = view === 'patient' && F.mode !== 'home';
   $('#top').innerHTML = `
     <div class="who"><b>${esc(name())}</b><span class="clock">${now.toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' })} · ${fmtT(now)}</span><span id="sync"></span></div>
-    ${nav && !INTRO.includes(F.mode) ? `<button class="ib nav-b" id="tBack" aria-label="Retour">${ic('back')}<span class="lb">Retour</span></button><button class="ib nav-b" id="tHome" aria-label="Accueil">${ic('home')}<span class="lb">Accueil</span></button>` : ''}
-    ${view === 'patient' && F.mode === 'home' ? `<button class="ib" id="tMood" aria-label="Redemander : ça va ?">${ic('content')}<span class="lb">Ça va ?</span></button>` : ''}
+    ${nav && !INTRO.includes(F.mode) ? `<button class="ib nav-b" id="tBack" aria-label="Retour">${ic('back')}<span class="lb">Retour</span></button>` : ''}
+    ${view === 'patient' && F.mode !== 'hello' ? `<button class="ib nav-b" id="tHome" aria-label="Accueil : Coucou, est-ce que tu veux parler ?">${ic('home')}<span class="lb">Accueil</span></button>` : ''}
     <button class="ib ${tracker.running ? 'on' : ''}" id="tCam" aria-label="Caméra" title="${GESTURES}">${ic('cam')}<span class="lb">${tracker.running ? 'Tête active' : 'Caméra'}</span></button>
     <button class="ib ${voice ? 'on' : ''}" id="tVoice" aria-label="Voix" title="Lire les questions à voix haute">${ic('voice')}<span class="lb">Voix</span></button>
     <button class="ib ${view === 'admin' ? 'on' : ''}" id="tView" aria-label="${view === 'admin' ? 'Retour à la vue patient' : 'Espace admin'}">${view === 'admin' ? ic('home') : ic('gear')}<span class="lb">${view === 'admin' ? 'Vue ' + esc(name()) : 'Admin'}</span></button>`;
   $('#tBack')?.addEventListener('click', back);
-  $('#tHome')?.addEventListener('click', goHome);
-  $('#tMood')?.addEventListener('click', showWelcome);
+  // Accueil = retour au tout premier écran « Coucou, est-ce que tu veux parler ? »
+  $('#tHome')?.addEventListener('click', () => { boardTheme = null; boardPage = 0; showHello(); });
   $('#tCam').onclick = toggleCam;
   $('#tVoice').onclick = () => { voice = !voice; store.set(K_VOICE, voice); renderTop(); if (voice) speak('Lecture à voix haute activée'); };
   $('#tView').onclick = () => view === 'admin' ? leaveAdmin() : openAdmin();
