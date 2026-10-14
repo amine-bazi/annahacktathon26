@@ -131,8 +131,8 @@ const AUTO_DONE_S = 10;   // secondes d'affichage du résumé avant de passer au
 const auto = { timer: 0, reminders: 0, visited: new Set() };
 // Réglages caméra de cet appareil (bouton « Réglages » en haut) : ils remplacent ceux d'Anna (espace admin)
 // sur cet appareil seulement, car la caméra, sa position et la lumière changent d'un appareil à l'autre.
-const CAM_KEYS = ['mode', 'hold', 'delai', 'sens', 'seuil', 'calib', 'recal', 'recalQ', 'swap', 'cam'];
-const CAM_BOUNDS = { hold: [0.3, 2], delai: [0, 5], sens: [0.5, 1.6], seuil: [0.4, 0.9], calib: [0.5, 3] };
+const CAM_KEYS = ['mode', 'hold', 'delai', 'skip', 'skipS', 'sens', 'seuil', 'calib', 'recal', 'recalQ', 'swap', 'cam'];
+const CAM_BOUNDS = { hold: [0.3, 2], delai: [0, 5], skipS: [5, 60], sens: [0.5, 1.6], seuil: [0.4, 0.9], calib: [0.5, 3] };
 let camLocal = store.get(K_CAM, {});
 function cfg() { const out = { ...(S?.settings || {}) }; for (const k of CAM_KEYS) if (camLocal[k] !== undefined) out[k] = camLocal[k]; return out; }
 const hasLocalCam = () => CAM_KEYS.some(k => camLocal[k] !== undefined);
@@ -316,7 +316,7 @@ function startQuick(sg) {
   undo = []; showQ();
 }
 function showPlan() { F = { mode: 'done', theme: 'journee', path: ['Ma journée', 'Programme du jour'], result: 'resolu', action: 'planning', entryNotes: [], priv: false, quick: true }; render(); speak('Voici le programme de ta journée.'); }
-function showQ() { F.qTs = Date.now(); render(); speak(cur().q, isAuto()); autoWatch(cur().q); scheduleRebase(); }
+function showQ() { F.qTs = Date.now(); render(); speak(cur().q, isAuto()); autoWatch(cur().q); scheduleRebase(); scheduleSkip(); }
 
 // Ouverture en deux questions : « Coucou, est-ce que tu veux parler ? » puis « Ça va ? ».
 const INTRO = ['hello', 'welcome', 'rest'];
@@ -390,6 +390,10 @@ function answer(a) {
     if (th && th.length) { F.stack.push({ list: th === INTENS ? INTENS : ordered(th), idx: 0 }); return showQ(); }
     return conclude('resolu', it);
   }
+  questionSuivante();
+}
+// Passe à l'élément suivant du niveau en cours (réponse « non », ou question sautée sans réponse).
+function questionSuivante() {
   const top = F.stack[F.stack.length - 1]; top.idx++;
   if (top.idx >= top.list.length) {
     if (F.quick || (F.single && F.stack.length === 1)) return goHome();
@@ -397,6 +401,24 @@ function answer(a) {
     return conclude(F.stack.length > 1 ? 'resolu' : 'non-trouve');
   }
   showQ();
+}
+// Option « passer à la question suivante sans attendre la réponse » (si Anna se fatigue) : quand la caméra est
+// active ou en mode automatisé, une question restée sans réponse passe à la suivante après le délai réglé.
+// Rien n'est enregistré comme réponse. Le minuteur est lié à la question affichée : toute réponse le rend caduc.
+let skipTimer = 0;
+function scheduleSkip() {
+  clearTimeout(skipTimer);
+  if (!cfg().skip || !(tracker.running || isAuto()) || F.mode !== 'q') return;
+  const ts = F.qTs;
+  skipTimer = setTimeout(() => { if (view === 'patient' && F.mode === 'q' && F.qTs === ts && !$('#ovRoot').firstChild) skipQuestion(); }, cfg().skipS * 1000);
+}
+function skipQuestion() {
+  undo.push(JSON.stringify(F));
+  const it = cur();
+  if (isAuto() && it.goto) auto.visited.add(it.goto);
+  toast('Pas de réponse : question suivante');
+  speak('Pas de réponse, je passe à la suivante.', isAuto()); answerSaidAt = Date.now();   // la question suivante ne coupe pas l'annonce
+  questionSuivante();
 }
 function record(entry) {
   S.history.unshift(entry);
@@ -859,6 +881,8 @@ function admSettings() {
         ${hasLocalCam() ? '<p class="muted" style="margin:0;font-size:13.5px">Cet appareil utilise ses propres réglages caméra, modifiables avec le bouton « Réglages » en haut de l’écran. Les valeurs ci-dessous sont celles d’Anna, pour les autres appareils.</p>' : ''}
         <label class="fl">Temps de détection (tête tournée) : <b id="holdV">${fmtS(S.settings.hold)}</b><input type="range" id="hold" min="0.3" max="2" step="0.1" value="${S.settings.hold}"></label>
         <label class="fl">Temporisation entre deux questions (la tête n’est pas prise en compte juste après une question) : <b id="delaiV">${fmtS(S.settings.delai)}</b><input type="range" id="delai" min="0" max="5" step="0.1" value="${S.settings.delai}"></label>
+        <label class="ck"><input type="checkbox" id="skip" ${S.settings.skip ? 'checked' : ''}> Passer à la question suivante sans attendre la réponse (caméra active ou mode automatisé)</label>
+        <label class="fl">Délai avant de passer : <b id="skipSV">${S.settings.skipS} s</b><input type="range" id="skipS" min="5" max="60" step="1" value="${S.settings.skipS}"></label>
         <label class="fl">Amplitude du mouvement : <b id="sensV">${Math.round(S.settings.sens * 100)} %</b><input type="range" id="sens" min="0.5" max="1.6" step="0.05" value="${S.settings.sens}"></label>
         <label class="fl">Seuil de déclenchement (score) : <b id="seuilV">${Math.round(S.settings.seuil * 100)} %</b><input type="range" id="seuil" min="0.4" max="0.9" step="0.05" value="${S.settings.seuil}"></label>
         <label class="fl">Durée de calibration de la position de repos : <b id="calibV">${fmtS(S.settings.calib)}</b><input type="range" id="calib" min="0.5" max="3" step="0.1" value="${S.settings.calib}"></label>
@@ -923,6 +947,9 @@ function bindAdmin() {
   on('#hold', 'change', e => adm('save-settings', { ...S.settings, hold: +e.target.value }, 'Temps de détection enregistré'));
   on('#delai', 'input', e => { $('#delaiV').textContent = fmtS(e.target.value); });
   on('#delai', 'change', e => adm('save-settings', { ...S.settings, delai: +e.target.value }, 'Temporisation enregistrée'));
+  on('#skip', 'change', e => adm('save-settings', { ...S.settings, skip: e.target.checked }, e.target.checked ? 'Passage automatique activé' : 'Passage automatique désactivé'));
+  on('#skipS', 'input', e => { $('#skipSV').textContent = e.target.value + ' s'; });
+  on('#skipS', 'change', e => adm('save-settings', { ...S.settings, skipS: +e.target.value }, 'Délai enregistré'));
   on('#calib', 'input', e => { $('#calibV').textContent = fmtS(e.target.value); });
   on('#calib', 'change', e => adm('save-settings', { ...S.settings, calib: +e.target.value }, 'Durée de calibration enregistrée'));
   on('#recalAuto', 'change', e => adm('save-settings', { ...S.settings, recal: e.target.checked }));
@@ -958,6 +985,8 @@ function openCamSettings() {
         <option value="auto" ${c.mode === 'auto' ? 'selected' : ''}>Automatisé : enchaînement de questions par la caméra</option></select></label>
       <label class="fl">Temps de détection (tête tournée) : <b id="csHoldV">${fmtS(c.hold)}</b><input type="range" id="csHold" min="0.3" max="2" step="0.1" value="${c.hold}"></label>
       <label class="fl">Temporisation entre deux questions : <b id="csDelaiV">${fmtS(c.delai)}</b><input type="range" id="csDelai" min="0" max="5" step="0.1" value="${c.delai}"></label>
+      <label class="ck"><input type="checkbox" id="csSkip" ${c.skip ? 'checked' : ''}> Passer à la question suivante sans attendre la réponse (si ${n} se fatigue)</label>
+      <label class="fl">Délai avant de passer : <b id="csSkipSV">${c.skipS} s</b><input type="range" id="csSkipS" min="5" max="60" step="1" value="${c.skipS}"></label>
       <label class="fl">Amplitude du mouvement (angle à tourner) : <b id="csSensV">${pct(c.sens)}</b><input type="range" id="csSens" min="0.5" max="1.6" step="0.05" value="${c.sens}"></label>
       <label class="fl">Seuil de déclenchement (score) : <b id="csSeuilV">${pct(c.seuil)}</b><input type="range" id="csSeuil" min="0.4" max="0.9" step="0.05" value="${c.seuil}"></label>
       <label class="fl">Durée de calibration de la position de repos : <b id="csCalibV">${fmtS(c.calib)}</b><input type="range" id="csCalib" min="0.5" max="3" step="0.1" value="${c.calib}"></label>
@@ -976,6 +1005,8 @@ function openCamSettings() {
   const slider = (id, key, label, fmt) => { $(id).oninput = e => { setLocalCam(key, e.target.value); $(label).textContent = fmt(cfg()[key]); }; };
   slider('#csHold', 'hold', '#csHoldV', fmtS);
   slider('#csDelai', 'delai', '#csDelaiV', fmtS);
+  slider('#csSkipS', 'skipS', '#csSkipSV', v => v + ' s');
+  $('#csSkip').onchange = e => { setLocalCam('skip', e.target.checked); scheduleSkip(); };
   slider('#csSens', 'sens', '#csSensV', pct);
   slider('#csSeuil', 'seuil', '#csSeuilV', pct);
   slider('#csCalib', 'calib', '#csCalibV', fmtS);

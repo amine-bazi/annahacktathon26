@@ -190,6 +190,7 @@ stateDiagram-v2
 ```
 
 - **Rappels** : sans réponse après le délai réglé (5 à 60 s), la question est relue ; après deux rappels, pause.
+- **Passer sans réponse** (option, panneau caméra ou admin) : quand la caméra est active ou en mode automatisé, une question restée sans réponse passe à la suivante après le délai réglé (5 à 60 s, 10 s par défaut), avec une annonce, sans enregistrer de réponse ni de statistique ; une question sautée compte comme « non » pour le déroulé (élément suivant du même niveau).
 - **Reprise** : après « non, pas maintenant », la fin d'un tour ou deux rappels sans réponse, l'application redemande « Tu veux parler ? » après le délai de reprise (10 s à 5 min), ou dès un « oui » de la tête.
 - **Tour** : chaque thème n'est proposé qu'une fois par tour (`auto.visited`), dans l'ordre des priorités donné par la réponse au « Ça va ? ».
 - **Autres capteurs** : un geste peut aussi être injecté par l'événement DOM `anna:gesture` (détail `oui` ou `non`), soumis à la même temporisation ; c'est le point d'entrée pour un détecteur externe.
