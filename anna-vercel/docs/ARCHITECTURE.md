@@ -65,7 +65,7 @@ anna-vercel/
 │   ├── index.html          coquille + pictogrammes SVG
 │   ├── styles.css          thème clair/sombre, grille mobile
 │   ├── app.js              écrans, déroulé des questions, moteur de reco, espace admin, file d'attente
-│   └── head-tracking.js    MediaPipe → gestes oui / non / parler
+│   └── head-tracking.js    MediaPipe → gestes oui / non
 ├── api/                    → 3 Vercel Functions
 │   ├── data.js             lecture de la banque, enregistrement des réponses
 │   ├── auth.js             code admin (création, connexion, déconnexion)
@@ -100,7 +100,7 @@ anna-vercel/
 
 ### 3.3 Reconnaissance des mouvements de tête
 
-Anna tourne la tête **vers sa gauche pour dire oui** et **vers sa droite pour dire non** ; pencher la tête 1 s demande la parole. La logique oui / non a d'abord été mise au point et testée en Python avec une webcam (OpenCV + MediaPipe), puis portée telle quelle dans `head-tracking.js`.
+Anna tourne la tête **vers sa gauche pour dire oui** et **vers sa droite pour dire non** ; la caméra ne reconnaît que ces deux réponses, « je veux parler » passe par le bouton ou la touche P. La logique oui / non a d'abord été mise au point et testée en Python avec une webcam (OpenCV + MediaPipe), puis portée telle quelle dans `head-tracking.js`.
 
 ```mermaid
 sequenceDiagram
@@ -117,22 +117,20 @@ sequenceDiagram
     H->>A: oui
   else score « non » ≥ 60 %
     H->>A: non
-  else tête penchée tenue 1 s
-    H->>A: parler
   else
     H->>H: « pas de détection précise » (score affiché)
   end
   A->>A: même traitement qu'un appui sur le bouton
 ```
 
-- **Gestes** : tête tournée vers **sa gauche = oui**, vers **sa droite = non**, tête penchée tenue 1 s = je veux parler. Hocher ou baisser la tête n'est pas un geste.
+- **Gestes** : tête tournée vers **sa gauche = oui**, vers **sa droite = non**. Hocher, baisser ou pencher la tête n'est pas un geste ; « je veux parler » passe par le bouton ou la touche P.
 - **Trois états en sortie** : `oui`, `non` ou `pas de détection précise`, toujours accompagnés d'un **score** de 0 à 100 % affiché dans le panneau caméra (jauges oui / non).
 - **Hystérésis** : on entre dans oui ou non à 60 % et on en sort sous 40 %, ce qui évite les clignotements autour du seuil. Le geste est émis à l'entrée dans l'état ; Anna revient au centre avant le geste suivant.
 - **Caméra** : arrière par défaut (téléphone tenu par la personne en face d'Anna, écran vers le lecteur) ; caméra avant si la tablette est posée face à Anna. Réglage dans Admin → Réglages.
 - **Sens gauche / droite** : calculé dans l'image brute de la caméra ; si un appareil renvoie une image miroir, l'option « Inverser gauche et droite » (Admin → Réglages) corrige, enregistrée par personne.
 - **Réglages** : « temps de détection » (durée pendant laquelle la tête reste tournée, de 0,3 à 2 s, c'est la fenêtre du score), « temporisation entre deux questions » (de 0 à 5 s : après l'affichage d'une question ou d'un résumé, les gestes de la tête sont ignorés pendant ce délai, le temps de revenir au centre ; les boutons restent actifs ; une barre se vide à l'écran et le panneau caméra indique « trop tôt »), « amplitude du mouvement » (de 50 % à 160 %, multiplie les angles de 8° et 20°), « seuil de déclenchement » (score d'entrée dans oui / non, de 40 % à 90 % ; la sortie se fait 20 points plus bas), « durée de calibration » de la position de repos (0,5 à 3 s), recalibrage au début de chaque enchaînement ou bouton « Recalibrer maintenant ».
 - **Deux niveaux de réglages** : les valeurs d'Anna, dans l'espace admin (code requis, enregistrées en base par personne), et les réglages de l'appareil, par le bouton « Réglages » à côté de « Caméra » (sans code, gardés dans `localStorage` sous `anna-cam`), qui les remplacent sur cet appareil seulement : la caméra, sa position et la lumière diffèrent entre le téléphone tenu par un proche et la tablette posée face à Anna. Ils s'appliquent en direct (le suivi relit les réglages à chaque image) et un bouton revient aux valeurs d'Anna.
-- **Anti-rebond** : 1 s de pause après un oui/non, 2 s après « parler ».
+- **Anti-rebond** : 1 s de pause après un oui/non.
 - **Dérive lente** : la position de repos suit doucement Anna quand elle est immobile ; recalibrage manuel avec le bouton « Recalibrer ».
 - **Recalibrage doux après chaque question** (option, active par défaut) : lancé pendant la temporisation, il mesure la position de repos sur la « durée de calibration » sans suspendre la détection, puis ne l'adopte que si la tête est restée stable (écart ≤ 8°) et proche du centre (≤ 20° × amplitude). Une tête franchement tournée ou en mouvement est ignorée : on ne prend jamais une réponse tenue pour la position de repos. La médiane des angles remplace la moyenne pour les deux calibrations.
 - **Chargement** : le moteur WebAssembly et le modèle (~3,6 Mo) sont téléchargés au premier clic sur « Caméra », puis mis en cache par le navigateur.
@@ -194,7 +192,7 @@ stateDiagram-v2
 - **Rappels** : sans réponse après le délai réglé (5 à 60 s), la question est relue ; après deux rappels, pause.
 - **Reprise** : après « non, pas maintenant », la fin d'un tour ou deux rappels sans réponse, l'application redemande « Tu veux parler ? » après le délai de reprise (10 s à 5 min), ou dès un « oui » de la tête.
 - **Tour** : chaque thème n'est proposé qu'une fois par tour (`auto.visited`), dans l'ordre des priorités donné par la réponse au « Ça va ? ».
-- **Autres capteurs** : un geste peut aussi être injecté par l'événement DOM `anna:gesture` (détail `oui`, `non` ou `parler`), soumis à la même temporisation ; c'est le point d'entrée pour un détecteur externe.
+- **Autres capteurs** : un geste peut aussi être injecté par l'événement DOM `anna:gesture` (détail `oui` ou `non`), soumis à la même temporisation ; c'est le point d'entrée pour un détecteur externe.
 - **Mise en œuvre** : tout est dans `public/app.js` (`isAuto()`, `autoWatch`, `autoRemind`, `autoRest`, `resumeScan`) ; les réponses passent par la même fonction `answer()` et les mêmes écritures API que le mode classique. Les réglages sont validés à un seul endroit, `normalizeSettings()` dans `lib/content.js`, utilisé par `api/admin.js`, la démo et le bootstrap ; stockés dans la colonne JSON `patients.settings`, sans migration.
 
 ---

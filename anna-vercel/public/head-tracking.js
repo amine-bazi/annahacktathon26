@@ -1,6 +1,6 @@
 // Suivi des mouvements de tête avec MediaPipe Face Landmarker (Tasks Vision), 100 % dans le navigateur :
-// les images de la caméra ne quittent jamais l'appareil, seuls les gestes (oui / non / parler) sont émis.
-//   tête tournée vers SA gauche = oui · vers SA droite = non · pencher la tête 1 s = je veux parler
+// les images de la caméra ne quittent jamais l'appareil, seuls les gestes oui / non sont émis.
+//   tête tournée vers SA gauche = oui · vers SA droite = non (« je veux parler » reste un bouton ou la touche P)
 // (getSwap() inverse gauche et droite si la caméra de l'appareil renvoie une image miroir)
 //
 // La logique oui / non reprend celle du programme Python validé avec une webcam (detection_oui_non.py) :
@@ -23,14 +23,14 @@ export const FENETRE = 600;      // ms : temps de détection par défaut (régla
 export const SEUIL_HAUT = 0.6;   // score à partir duquel on entre dans oui / non
 export const SEUIL_BAS = 0.4;    // score sous lequel on revient à « pas de détection précise »
 export const INCERTAIN = 'pas de détection précise';
-const ROULIS = 15;               // degrés : inclinaison de la tête pour « parler »
 const CALIB_MIN = 5;             // images minimales pour la calibration de la position de repos
-const COOL_REPONSE = 1000, COOL_PARLER = 2000;   // ms : temps mort après un geste
+const COOL_REPONSE = 1000;       // ms : temps mort après un geste
 
 // Angles de la tête en degrés à partir de la matrice de pose 4x4 de MediaPipe (`data`, 16 nombres).
 // Le tableau peut être rangé par lignes ou par colonnes selon la version : on le reconnaît grâce aux zéros
 // de la dernière ligne [0 0 0 1], la translation (dernière colonne) n'étant jamais nulle pour un visage.
-// lacet > 0 : tête tournée vers la gauche de la personne (image brute, non inversée) · roulis : tête penchée.
+// lacet > 0 : tête tournée vers la gauche de la personne (image brute, non inversée) · roulis : tête penchée
+// (le roulis ne sert qu'à vérifier que la tête est stable pendant la calibration).
 export function anglesTete(m) {
   const parColonnes = m[3] === 0 && m[7] === 0 && m[11] === 0 && (m[12] !== 0 || m[13] !== 0 || m[14] !== 0);
   const r = parColonnes ? (i, j) => m[j * 4 + i] : (i, j) => m[i * 4 + j];
@@ -93,7 +93,7 @@ export function createDetecteurRegard({ angleMin = ANGLE_MIN, anglePlein = ANGLE
 export function createHeadTracker({ video, onGesture, onMeters, onStatus, getSensitivity, getSwap = () => false, getFacing = () => 'environment', getHold = () => FENETRE / 1000, getCalib = () => 1, getSeuil = () => SEUIL_HAUT }) {
   let landmarker = null, stream = null, running = false, raf = 0, lastTime = -1;
   const det = createDetecteurRegard();
-  const st = { base: null, calib: [], calibStart: 0, soft: null, etatPrec: INCERTAIN, cool: 0, rollT: 0 };
+  const st = { base: null, calib: [], calibStart: 0, soft: null, etatPrec: INCERTAIN, cool: 0 };
 
   async function load() {
     if (landmarker) return;
@@ -129,7 +129,7 @@ export function createHeadTracker({ video, onGesture, onMeters, onStatus, getSen
   // Position de repos : médiane des angles pendant la durée de calibration (tête immobile, regard droit devant).
   // La détection est suspendue pendant cette calibration « dure ».
   function recalibrate() {
-    Object.assign(st, { base: null, calib: [], calibStart: 0, soft: null, etatPrec: INCERTAIN, rollT: 0 });
+    Object.assign(st, { base: null, calib: [], calibStart: 0, soft: null, etatPrec: INCERTAIN });
     det.reinitialiser();
     onStatus('Calibration : tête immobile…', '');
   }
@@ -156,8 +156,8 @@ export function createHeadTracker({ video, onGesture, onMeters, onStatus, getSen
   function track(res, now) {
     const m = res.facialTransformationMatrixes?.[0]?.data;
     if (!res.faceLandmarks?.[0] || !m) {
-      det.reinitialiser(); st.rollT = 0;
-      onMeters(0, 0, 0); onStatus('Visage non détecté', '');
+      det.reinitialiser();
+      onMeters(0, 0); onStatus('Visage non détecté', '');
       return;
     }
     const { lacet, roulis } = anglesTete(m);
@@ -181,21 +181,14 @@ export function createHeadTracker({ video, onGesture, onMeters, onStatus, getSen
     }
     det.fenetre = getHold() * 1000;        // temps de détection réglable
     det.seuil = getSeuil();                // seuil de déclenchement réglable
-    const dr = roulis - st.base.r;
     // Dans l'image brute de la caméra, le lacet devient positif quand Anna tourne la tête vers SA gauche.
     let dy = lacet - st.base.y;
     if (getSwap()) dy = -dy;
     // Au repos, la position de référence suit lentement les petits glissements.
-    if (Math.abs(dy) < ANGLE_MIN * k * 0.5 && Math.abs(dr) < ROULIS * k * 0.5) { st.base.y += 0.02 * (lacet - st.base.y); st.base.r += 0.02 * dr; }
-
-    // Pencher la tête et tenir 1 seconde = je veux parler.
-    if (Math.abs(dr) > ROULIS * k) {
-      if (!st.rollT) st.rollT = now;
-      if (now - st.rollT > 1000 && now >= st.cool) { fire('parler'); st.rollT = 0; st.cool = now + COOL_PARLER; det.reinitialiser(); }
-    } else st.rollT = 0;
+    if (Math.abs(dy) < ANGLE_MIN * k * 0.5) { st.base.y += 0.02 * (lacet - st.base.y); st.base.r += 0.02 * (roulis - st.base.r); }
 
     const r = det.ajouter(now, dy, k);
-    onMeters(r.scoreOui, r.scoreNon, st.rollT ? Math.min(1, (now - st.rollT) / 1000) : Math.min(1, Math.abs(dr) / (ROULIS * k)));
+    onMeters(r.scoreOui, r.scoreNon);
     const pct = Math.round(r.score * 100);
     onStatus((r.etat === INCERTAIN ? `Pas de détection précise · ${pct} %` : `${r.etat.toUpperCase()} · ${pct} %`) + (st.soft ? ' · recalibrage' : ''), r.etat);
 

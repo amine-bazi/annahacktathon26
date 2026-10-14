@@ -18,7 +18,7 @@ const PERSON_FOLLOW = [
 ];
 const KINDS = [['Proches', 'Proche (famille, ami)'], ['Équipe', 'Équipe soignante'], ['Rencontres', 'Personne croisée']];
 const GROUPS = [['E', 'S', 'A', 'I', 'N', 'T', 'R', 'U', 'L'], ['O', 'D', 'C', 'M', 'P', 'G', 'B', 'V', 'H'], ['F', 'Q', 'J', 'X', 'Y', 'Z', 'K', 'W', '’'], ['ESPACE', 'EFFACER', 'TERMINER', 'ANNULER']];
-const GESTURES = 'Tête à gauche = oui · tête à droite = non · pencher 1 s = parler';
+const GESTURES = 'Tête à gauche = oui · tête à droite = non';
 // Question d'entrée de chaque thème dans l'enchaînement (sinon « C’est à propos de : … ? »).
 const THEME_Q = {
   douleur: 'Tu as mal quelque part ?', emotions: 'Tu veux parler de comment tu te sens ?', position: 'Tu veux changer de position ou être mieux installée ?',
@@ -1001,10 +1001,12 @@ function scheduleRebase() {
   if (!tracker.running || !cfg().recalQ) return;
   rebaseTimer = setTimeout(() => tracker.rebase(), Math.max(0, cfg().delai - cfg().calib) * 1000);
 }
-// Geste reçu de la caméra, ou d'un autre capteur par l'événement DOM « anna:gesture » (détail : oui / non / parler).
+// Geste reçu de la caméra, ou d'un autre capteur par l'événement DOM « anna:gesture » (détail : oui / non).
+// La caméra ne reconnaît que oui et non : « je veux parler » passe par le bouton ou la touche P.
 function cameraGesture(g) {
-  const ignore = g !== 'parler' && F.mode !== 'home' && tooSoon();
-  $('#camLast').textContent = ({ oui: 'Oui', non: 'Non', parler: 'Parler' }[g] || g) + (ignore ? ' · trop tôt' : '');
+  if (g !== 'oui' && g !== 'non') return;
+  const ignore = F.mode !== 'home' && tooSoon();
+  $('#camLast').textContent = (g === 'oui' ? 'Oui' : 'Non') + (ignore ? ' · trop tôt' : '');
   if (!ignore) answer(g);
 }
 document.addEventListener('anna:gesture', e => cameraGesture(e.detail));
@@ -1017,7 +1019,7 @@ const tracker = createHeadTracker({
   getCalib: () => S ? cfg().calib : 1,
   getSeuil: () => S ? cfg().seuil : 0.6,
   onStatus: (msg, etat) => { for (const el of [$('#camMsg'), $('#csState')]) if (el) { el.textContent = msg; el.dataset.etat = etat || ''; } },
-  onMeters: (yes, no, talk) => { $('#mP').style.width = Math.min(100, yes * 100) + '%'; $('#mY').style.width = Math.min(100, no * 100) + '%'; $('#mR').style.width = Math.min(100, talk * 100) + '%'; },
+  onMeters: (yes, no) => { $('#mP').style.width = Math.min(100, yes * 100) + '%'; $('#mY').style.width = Math.min(100, no * 100) + '%'; },
   onGesture: cameraGesture,
 });
 async function toggleCam() {

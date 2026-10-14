@@ -13,7 +13,7 @@ Application de communication **oui / non / je veux parler**, au toucher ou par *
 
 ## Essayer en 1 minute
 
-- **Prototype** : ouvrir `prototype/anna.html` dans Chrome. Le bouton Caméra active le suivi de tête : **tête vers sa gauche = oui**, **tête vers sa droite = non**, pencher la tête 1 s = je veux parler.
+- **Prototype** : ouvrir `prototype/anna.html` dans Chrome. Le bouton Caméra active le suivi de tête : **tête vers sa gauche = oui**, **tête vers sa droite = non**. « Je veux parler » reste un bouton.
 - **Modifier l'application** : tout se fait dans `anna-vercel/`, puis `npm run build:prototype -- --out ../prototype/anna.html` régénère le prototype.
 - **Version Vercel en local, sans base** : dans `anna-vercel/`, lancer `npm run dev:mock` puis ouvrir http://localhost:3000/?cle=demo (Node 20 ou plus).
 
