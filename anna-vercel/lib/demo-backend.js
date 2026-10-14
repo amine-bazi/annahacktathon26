@@ -157,7 +157,7 @@ export function createDemoBackend({ load = () => null, save = () => {}, withExam
     },
     'delete-person': b => { db.people = db.people.filter(p => p.id !== b.id); },
     'save-plan': b => { db.patient.daily_plan = String(b.plan || ''); },
-    'save-settings': b => { db.patient.settings = { reco: b.reco !== false, sens: Math.min(1.6, Math.max(0.5, Number(b.sens) || 1)), swap: !!b.swap }; },
+    'save-settings': b => { db.patient.settings = { reco: b.reco !== false, sens: Math.min(1.6, Math.max(0.5, Number(b.sens) || 1)), swap: !!b.swap, cam: b.cam === 'user' ? 'user' : 'environment' }; },
     'change-pin': b => { if ((b.pin || '').length < 4) throw new DemoError(400, 'Au moins 4 caractères'); db.patient.admin_pin = b.pin; },
     'rotate-device-key': () => { deviceKey = sfx() + sfx(); return { key: deviceKey }; },
   };

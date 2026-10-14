@@ -85,6 +85,7 @@ anna-vercel/
 
 | Écran | Rôle |
 |---|---|
+| **Ouverture « Ça va ? »** | Premier écran : « Ça va ? » en deux grands boutons Oui / Non (ou gestes de tête). La réponse est enregistrée et met en tête les thèmes utiles : **ça ne va pas** → Douleur, Émotions, Position, Chaud / froid, Boire / manger, Toilette ; **ça va** → Poser une question, Dire quelque chose, Proches, Loisirs, Ma journée, Autre sujet. Le Top 3 prend alors le pictogramme principal de chacun des 3 premiers thèmes. Le bouton « Ça va ? » de la barre du haut repose la question |
 | **Accueil** | Pensé pour le téléphone que tient la personne en face d'Anna : texte et pictogrammes en grand, sans défilement. Une ligne par thème = le thème, ses **3 pictogrammes les plus importants** (moteur de recommandation) et « + » pour le reste. Le nombre de lignes s'adapte à l'écran ; **Page suivante / Précédente** pour les autres thèmes. Page 1 : **Top 3** puis les besoins essentiels (Boire / manger, Douleur, Position, Toilette) |
 | **Oui · Non · Parler** | Absents de l'accueil : la barre de réponse et les gestes de tête (caméra) ne sont actifs que pendant les questions |
 | **Page d'un thème** | Tous les pictogrammes du thème en grand, en pages si besoin ; « Oui / non » parcourt le thème question par question |
@@ -118,6 +119,7 @@ sequenceDiagram
 ```
 
 - **Gestes** : tête tournée vers **sa gauche = oui**, vers **sa droite = non**, tête penchée tenue 1 s = je veux parler. Hocher ou baisser la tête n'est pas un geste.
+- **Caméra** : arrière par défaut (téléphone tenu par la personne en face d'Anna, écran vers le lecteur) ; caméra avant si la tablette est posée face à Anna. Réglage dans Admin → Réglages.
 - **Sens gauche / droite** : calculé dans l'image brute de la caméra ; si un appareil renvoie une image miroir, l'option « Inverser gauche et droite » (Admin → Réglages) corrige, enregistrée par personne.
 - **Seuils réglables** dans l'espace admin (« amplitude du mouvement », de 50 % à 160 %), enregistrés par personne.
 - **Anti-rebond** : 1,2 s de pause après un oui/non, 2 s après « parler ».

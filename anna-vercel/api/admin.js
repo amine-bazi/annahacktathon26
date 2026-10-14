@@ -91,7 +91,7 @@ const actions = {
     await sql`UPDATE patients SET daily_plan = ${str(b.plan, 4000, { optional: true })} WHERE id = ${p.id}`;
   },
   async 'save-settings'(p, b) {
-    const settings = { reco: b.reco !== false, sens: Math.min(1.6, Math.max(0.5, Number(b.sens) || 1)), swap: !!b.swap };
+    const settings = { reco: b.reco !== false, sens: Math.min(1.6, Math.max(0.5, Number(b.sens) || 1)), swap: !!b.swap, cam: b.cam === 'user' ? 'user' : 'environment' };
     await sql`UPDATE patients SET settings = ${JSON.stringify(settings)}::jsonb WHERE id = ${p.id}`;
   },
   async 'change-pin'(p, b) {

@@ -6,7 +6,7 @@
 const VISION = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14';
 const MODEL = 'https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task';
 
-export function createHeadTracker({ video, onGesture, onMeters, onStatus, getSensitivity, getSwap = () => false }) {
+export function createHeadTracker({ video, onGesture, onMeters, onStatus, getSensitivity, getSwap = () => false, getFacing = () => 'environment' }) {
   let landmarker = null, stream = null, running = false, raf = 0, lastTime = -1;
   const st = { base: null, calib: [], exc: null, cool: 0, rollT: 0 };
 
@@ -21,7 +21,10 @@ export function createHeadTracker({ video, onGesture, onMeters, onStatus, getSen
   }
 
   async function start() {
-    stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } }, audio: false });
+    // Caméra arrière par défaut : le téléphone est tenu par la personne en face d'Anna, écran vers elle.
+    const facing = getFacing();
+    stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: facing }, width: { ideal: 640 }, height: { ideal: 480 } }, audio: false });
+    video.style.transform = facing === 'user' ? 'scaleX(-1)' : 'none';   // aperçu en miroir seulement pour la caméra avant
     video.srcObject = stream;
     await video.play();
     await load();

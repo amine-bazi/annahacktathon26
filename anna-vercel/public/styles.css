@@ -128,7 +128,7 @@ svg.i{width:1em;height:1em;stroke:currentColor;fill:none;stroke-width:1.8;stroke
 /* caméra */
 .cam{position:fixed;right:16px;top:calc(64px + env(safe-area-inset-top,0px));width:132px;background:var(--panel);border:1px solid var(--line);border-radius:12px;overflow:hidden;box-shadow:0 8px 24px rgba(0,0,0,.18);z-index:5}
 @media (min-width:720px){.cam{width:190px;top:auto;bottom:calc(130px + env(safe-area-inset-bottom,0px))}}
-.cam video{width:100%;display:block;transform:scaleX(-1);aspect-ratio:4/3;object-fit:cover;background:#000}
+.cam video{width:100%;display:block;aspect-ratio:4/3;object-fit:cover;background:#000}
 .cam .st{padding:6px 8px;font-size:12px;display:flex;flex-direction:column;gap:4px}
 .meter{display:grid;grid-template-columns:36px 1fr;gap:6px;align-items:center;font-family:var(--mono);font-size:10.5px;color:var(--muted)}
 .meter i{height:5px;border-radius:3px;background:var(--panel-2);position:relative;overflow:hidden}
@@ -222,4 +222,17 @@ button.tlab:hover{background:var(--panel)}
 .pgrid{flex:1;display:grid;gap:8px;min-height:0}
 .pgrid .pic{font-size:15px}
 .pgrid .pic>svg{font-size:40px}
+/* écran d'ouverture « Ça va ? » et rappel du contexte sur l'accueil */
+.welcome{max-width:720px;margin:0 auto;min-height:100%;display:flex;flex-direction:column;justify-content:center;align-items:center;gap:16px;text-align:center}
+.welcome .q{font-size:clamp(48px,14vw,96px)}
+.welcome .muted{margin:0;font-size:14px}
+.wbtns{display:grid;grid-template-columns:1fr 1fr;gap:12px;width:100%}
+.wb{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;min-height:150px;border:none;border-radius:20px;color:#fff;font-size:clamp(18px,4.5vw,26px);font-weight:700;padding:14px}
+.wb svg{font-size:56px}
+.wb.no{background:var(--no)}.wb.yes{background:var(--yes)}
+.wb:active{transform:scale(.97)}
+.moodnote{margin:0;display:flex;align-items:center;gap:8px;padding:8px 12px;border-radius:12px;font-size:15px;font-weight:700;flex:none}
+.moodnote svg{font-size:20px;flex:none}
+.moodnote.ko{background:color-mix(in srgb,var(--urgent) 12%,var(--panel));color:var(--urgent)}
+.moodnote.ok{background:color-mix(in srgb,var(--yes) 12%,var(--panel));color:var(--yes)}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}

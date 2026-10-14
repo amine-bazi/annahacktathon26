@@ -47,11 +47,12 @@ Puis ouvrir http://localhost:3000/?cle=demo. Les données sont en mémoire et re
 
 ## Utilisation
 
-- Anna répond avec **Non · Parler · Oui** en bas de l'écran, au clavier (O / N / P), ou avec la tête après un appui sur **Caméra** :
+- L'application s'ouvre sur **« Ça va ? »** (Oui / Non) : la réponse met en tête les thèmes utiles (douleur et confort si ça ne va pas, échanges et activités si ça va).
+- Pendant les questions, Anna répond avec **Non · Parler · Oui** en bas de l'écran, au clavier (O / N / P), ou avec la tête après un appui sur **Caméra** :
   - **tête tournée vers sa gauche = oui**
   - **tête tournée vers sa droite = non**
   - pencher la tête et tenir 1 s = je veux parler
-  Si la caméra de la tablette inverse l'image : Admin → Réglages → « Inverser gauche et droite ».
+  Caméra arrière par défaut (téléphone tenu face à Anna) ; caméra avant pour une tablette posée face à elle : Admin → Réglages. Si l'image est inversée : « Inverser gauche et droite ».
 - Le lien d'installation est un secret : quiconque l'a peut lire les échanges. En cas d'appareil perdu : Admin → Réglages → **Générer un nouveau lien**.
 
 ## Données de santé

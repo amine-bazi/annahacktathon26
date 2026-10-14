@@ -195,12 +195,39 @@ function suggestions() {
   });
   return [...map.values()].sort((a, b) => b.w - a.w);
 }
-// Top 3 : les besoins habituels à cette heure, complétés par les questions au meilleur score.
+// Réponse au « Ça va ? » de l'ouverture : elle met en tête les thèmes les plus utiles.
+//   ça ne va pas → douleur, émotions, confort, besoins essentiels
+//   ça va        → échanger, proches, activités, la journée
+let mood = null;
+const MOOD = {
+  ko: { themes: ['douleur', 'emotions', 'position', 'temp', 'soif', 'hygiene'], note: 'Ça ne va pas : on commence par la douleur et le confort.' },
+  ok: { themes: ['interaction', 'dire', 'proches', 'activites', 'journee', 'autre'], note: 'Ça va : envie d’échanger ou de faire quelque chose ?' },
+};
+const prio = () => MOOD[mood]?.themes || [];
+function themesInOrder() {
+  const p = prio(), rank = t => { const i = p.indexOf(t.id); return i < 0 ? p.length : i; };
+  return S.themes.map((t, i) => ({ t, i })).sort((a, b) => rank(a.t) - rank(b.t) || a.i - b.i).map(o => o.t);
+}
+// Top 3 : les besoins habituels à cette heure (d'abord dans les thèmes prioritaires), complétés par les questions au meilleur score.
 function top3() {
-  const out = suggestions().slice(0, 3).map(sg => ({ kind: 'sugg', sg }));
+  const p = prio(), pr = th => (p.includes(th) ? 0 : 1);
+  if (p.length) {
+    // Après « Ça va ? » : le pictogramme le plus important de chacun des thèmes prioritaires, dans l'ordre
+    // (ça ne va pas → douleur, émotions, position). Besoin habituel du thème s'il existe, sinon sa meilleure question.
+    const sugg = suggestions(), out = [];
+    for (const id of p) {
+      const t = theme(id); if (!t || out.length >= 3) continue;
+      const sg = sugg.find(x => x.theme === id);
+      if (sg) { out.push({ kind: 'sugg', sg }); continue; }
+      const it = ordered(t.items).find(x => !x.action);
+      if (it) out.push({ kind: 'item', t, it });
+    }
+    if (out.length === 3) return out;
+  }
+  const out = suggestions().map((sg, i) => ({ sg, i })).sort((a, b) => pr(a.sg.theme) - pr(b.sg.theme) || a.i - b.i).slice(0, 3).map(({ sg }) => ({ kind: 'sugg', sg }));
   if (out.length < 3) {
     const cands = [];
-    S.themes.filter(t => !t.private && !t.dynamic).forEach(t => t.items.forEach(it => { if (!it.action) cands.push({ t, it, s: scoreOf(it.id).score }); }));
+    S.themes.filter(t => !t.private && !t.dynamic).forEach(t => t.items.forEach(it => { if (!it.action) cands.push({ t, it, s: scoreOf(it.id).score - pr(t.id) }); }));
     cands.sort((a, b) => b.s - a.s);
     for (const c of cands) {
       if (out.length >= 3) break;
@@ -231,7 +258,8 @@ function startItem(themeId, itemId) {
   undo = []; showQ();
 }
 function startScan() {
-  const list = S.themes.filter(t => themeItems(t).length).map(t => ({ t, u: S.history.filter(e => e.theme === t.id).length })).sort((a, b) => b.u - a.u)
+  const p = prio(), rank = t => { const i = p.indexOf(t.id); return i < 0 ? p.length : i; };
+  const list = S.themes.filter(t => themeItems(t).length).map(t => ({ t, u: S.history.filter(e => e.theme === t.id).length })).sort((a, b) => rank(a.t) - rank(b.t) || b.u - a.u)
     .map(({ t }) => ({ id: 'scan.' + t.id, l: t.label, q: `C’est à propos de : ${t.label} ?`, goto: t.id }));
   F = { mode: 'q', theme: 'scan', stack: [{ list, idx: 0 }], path: ['Choix du thème'], asked: [], t0: Date.now(), priv: false };
   undo = []; showQ();
@@ -249,9 +277,18 @@ function startQuick(sg) {
 function showPlan() { F = { mode: 'done', theme: 'journee', path: ['Ma journée', 'Programme du jour'], result: 'resolu', action: 'planning', entryNotes: [], priv: false, quick: true }; render(); speak('Voici le programme de ta journée.'); }
 function showQ() { F.qTs = Date.now(); render(); speak(cur().q); }
 
+function showWelcome() { F = { mode: 'welcome' }; undo = []; render(); speak(`${name()}, ça va ?`); }
 function answer(a) {
   // Sur l'accueil, ni boutons ni caméra : oui / non / parler ne servent qu'à répondre aux questions.
   if (F.mode === 'home') return;
+  if (F.mode === 'welcome' && a !== 'parler') {
+    if (view !== 'patient') return;
+    flash(a); sayAnswer(a);
+    mood = a === 'oui' ? 'ok' : 'ko';
+    record(newEntry('accueil', ['Ça va ?', a === 'oui' ? 'Oui' : 'Non'], 'resolu'));
+    boardPage = 0; boardTheme = null;
+    return goHome();
+  }
   flash(a);
   if ($('#ovRoot').firstChild) { if (a === 'parler') return; closeOv(); }
   if (a === 'parler') return talk();
@@ -370,22 +407,24 @@ function render() {
   if (!S) return;
   renderTop();
   const m = $('#main');
-  $('#bar').hidden = view !== 'patient' || F.mode === 'home';
+  $('#bar').hidden = view !== 'patient' || F.mode === 'home' || F.mode === 'welcome';
   m.classList.toggle('board-mode', view === 'patient' && F.mode === 'home');
   if (view === 'admin') { m.innerHTML = renderAdmin(); bindAdmin(); return; }
-  m.innerHTML = F.mode === 'home' ? renderBoard() : F.mode === 'q' ? renderQ() : F.mode === 'done' ? renderDone() : F.mode === 'deeper' ? renderDeeper() : renderSpell();
+  m.innerHTML = F.mode === 'welcome' ? renderWelcome() : F.mode === 'home' ? renderBoard() : F.mode === 'q' ? renderQ() : F.mode === 'done' ? renderDone() : F.mode === 'deeper' ? renderDeeper() : renderSpell();
   m.scrollTop = 0;
 }
 function renderTop() {
   const now = new Date(), nav = view === 'patient' && F.mode !== 'home';
   $('#top').innerHTML = `
     <div class="who"><b>${esc(name())}</b><span class="clock">${now.toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' })} · ${fmtT(now)}</span><span id="sync"></span></div>
-    ${nav ? `<button class="ib nav-b" id="tBack" aria-label="Retour">${ic('back')}<span class="lb">Retour</span></button><button class="ib nav-b" id="tHome" aria-label="Accueil">${ic('home')}<span class="lb">Accueil</span></button>` : ''}
+    ${nav && F.mode !== 'welcome' ? `<button class="ib nav-b" id="tBack" aria-label="Retour">${ic('back')}<span class="lb">Retour</span></button><button class="ib nav-b" id="tHome" aria-label="Accueil">${ic('home')}<span class="lb">Accueil</span></button>` : ''}
+    ${view === 'patient' && F.mode === 'home' ? `<button class="ib" id="tMood" aria-label="Redemander : ça va ?">${ic('content')}<span class="lb">Ça va ?</span></button>` : ''}
     <button class="ib ${tracker.running ? 'on' : ''}" id="tCam" aria-label="Caméra" title="${GESTURES}">${ic('cam')}<span class="lb">${tracker.running ? 'Tête active' : 'Caméra'}</span></button>
     <button class="ib ${voice ? 'on' : ''}" id="tVoice" aria-label="Voix" title="Lire les questions à voix haute">${ic('voice')}<span class="lb">Voix</span></button>
     <button class="ib ${view === 'admin' ? 'on' : ''}" id="tView" aria-label="${view === 'admin' ? 'Retour à la vue patient' : 'Espace admin'}">${view === 'admin' ? ic('home') : ic('gear')}<span class="lb">${view === 'admin' ? 'Vue ' + esc(name()) : 'Admin'}</span></button>`;
   $('#tBack')?.addEventListener('click', back);
   $('#tHome')?.addEventListener('click', goHome);
+  $('#tMood')?.addEventListener('click', showWelcome);
   $('#tCam').onclick = toggleCam;
   $('#tVoice').onclick = () => { voice = !voice; store.set(K_VOICE, voice); renderTop(); if (voice) speak('Lecture à voix haute activée'); };
   $('#tView').onclick = () => view === 'admin' ? leaveAdmin() : openAdmin();
@@ -416,7 +455,8 @@ function renderBoard() {
   if (boardTheme && theme(boardTheme)) return renderThemePage();
   boardTheme = null;
   const avail = boardSpace(), rowH = avail > 700 ? 124 : 104;   // lignes hautes : lisibles par la personne qui tient le téléphone
-  const perPage = Math.max(3, Math.floor((avail - 64) / rowH));   // 64 = barre de pages
+  const note = MOOD[mood]?.note && boardPage === 0 ? `<p class="moodnote ${mood}">${ic(mood === 'ko' ? 'douleur' : 'content')} ${esc(MOOD[mood].note)}</p>` : '';
+  const perPage = Math.max(3, Math.floor((avail - 64 - (note ? 40 : 0)) / rowH));   // 64 = barre de pages
   topCache = top3();
   const topRow = `<div class="trow toprow" style="--h:40"><div class="tlab">${ic('star')}<span>Top 3</span></div>${topCache.map((o, i) => {
     if (o.kind === 'sugg') {
@@ -427,7 +467,7 @@ function renderBoard() {
     }
     return pic(`data-top="${i}"`, ic(itemIcon(o.it, o.t)), o.it.l, typeOf(o.t.group).h, 'hot');
   }).join('')}${pic('data-act="scan"', ic('scan'), 'Tout parcourir', 40)}</div>`;
-  const rows = [topRow, ...S.themes.map(t => {
+  const rows = [topRow, ...themesInOrder().map(t => {
     const h = typeOf(t.group).h, all = themePics(t, h);
     const more = all.length > 3 ? pic(`data-act="openTheme" data-th="${esc(t.id)}"`, `<b class="plus">+${all.length - 3}</b>`, 'Voir plus', h, 'more') : '<span></span>';
     return `<div class="trow" style="--h:${h}">
@@ -437,7 +477,20 @@ function renderBoard() {
   const pages = Math.ceil(rows.length / perPage);
   boardPage = Math.min(boardPage, pages - 1);
   const shown = rows.slice(boardPage * perPage, (boardPage + 1) * perPage);
-  return `<div class="page"><div class="prows" style="grid-template-rows:repeat(${perPage},minmax(0,1fr))">${shown.join('')}</div>${pager(boardPage, pages, 'prevPage', 'nextPage')}</div>`;
+  return `<div class="page">${note}<div class="prows" style="grid-template-rows:repeat(${perPage},minmax(0,1fr))">${shown.join('')}</div>${pager(boardPage, pages, 'prevPage', 'nextPage')}</div>`;
+}
+// Écran d'ouverture : « Ça va ? » en oui / non (boutons, clavier ou tête), avant les thèmes.
+function renderWelcome() {
+  return `<div class="welcome">
+    <p class="tag">${esc(name())}</p>
+    <h1 class="q">Ça va ?</h1>
+    <p class="muted">${GESTURES}</p>
+    <div class="wbtns">
+      <button class="wb no" data-act="wNon">${ic('triste')}<span>Non, ça ne va pas</span></button>
+      <button class="wb yes" data-act="wOui">${ic('content')}<span>Oui, ça va</span></button>
+    </div>
+    <button class="btn" data-act="wSkip">Passer, voir les thèmes ${ic('droite')}</button>
+  </div>`;
 }
 // Page d'un thème : tous ses pictogrammes, en pages si besoin.
 function renderThemePage() {
@@ -511,6 +564,7 @@ $('#main').addEventListener('click', e => {
     const a = b.dataset.act;
     if (a === 'scan') startScan(); else if (a === 'spell') startSpell(['Message']); else if (a === 'plan') showPlan();
     else if (a === 'themeScan') startTheme(b.dataset.th);
+    else if (a === 'wOui') answer('oui'); else if (a === 'wNon') answer('non'); else if (a === 'wSkip') { mood = null; goHome(); }
     else if (a === 'openTheme') { boardTheme = b.dataset.th; themePage = 0; render(); }
     else if (a === 'closeTheme') { boardTheme = null; render(); }
     else if (a === 'nextPage') { boardPage++; render(); } else if (a === 'prevPage') { boardPage = Math.max(0, boardPage - 1); render(); }
@@ -665,6 +719,9 @@ function admSettings() {
       <div class="fgrid">
         <p class="muted" style="margin:0;font-size:14px">${GESTURES}.</p>
         <label class="fl">Amplitude du mouvement : <b id="sensV">${Math.round(S.settings.sens * 100)} %</b><input type="range" id="sens" min="0.5" max="1.6" step="0.05" value="${S.settings.sens}"></label>
+        <label class="fl">Caméra utilisée<select id="camSel">
+          <option value="environment" ${S.settings.cam !== 'user' ? 'selected' : ''}>Arrière : téléphone tenu par la personne en face de ${esc(name())}</option>
+          <option value="user" ${S.settings.cam === 'user' ? 'selected' : ''}>Avant : écran tourné vers ${esc(name())} (tablette posée)</option></select></label>
         <label class="ck"><input type="checkbox" id="swap" ${S.settings.swap ? 'checked' : ''}> Inverser gauche et droite (si la caméra de l’appareil inverse l’image)</label>
       </div></div>
     <div class="card"><h3>Options</h3>
@@ -707,6 +764,7 @@ function bindAdmin() {
   on('#fTy', 'submit', e => { e.preventDefault(); adm('add-type', { name: $('#tyName').value }, 'Catégorie créée : ajoute-lui un thème'); });
   on('#savePlan', 'click', () => adm('save-plan', { plan: $('#plan').value }, 'Programme enregistré'));
   on('#reco', 'change', e => adm('save-settings', { ...S.settings, reco: e.target.checked }));
+  on('#camSel', 'change', async e => { await adm('save-settings', { ...S.settings, cam: e.target.value }, 'Caméra enregistrée'); if (tracker.running) { tracker.stop(); toggleCam(); } });
   on('#swap', 'change', e => adm('save-settings', { ...S.settings, swap: e.target.checked }, e.target.checked ? 'Gauche et droite inversées' : 'Sens normal'));
   on('#sens', 'input', e => { $('#sensV').textContent = Math.round(e.target.value * 100) + ' %'; });
   on('#sens', 'change', e => adm('save-settings', { ...S.settings, sens: +e.target.value }, 'Amplitude enregistrée'));
@@ -727,6 +785,7 @@ const tracker = createHeadTracker({
   video: $('#vid'),
   getSensitivity: () => S?.settings.sens || 1,
   getSwap: () => !!S?.settings.swap,
+  getFacing: () => S?.settings.cam || 'environment',
   onStatus: msg => { $('#camMsg').textContent = msg; },
   onMeters: (yes, no, talk) => { $('#mP').style.width = Math.min(100, yes * 100) + '%'; $('#mY').style.width = Math.min(100, no * 100) + '%'; $('#mR').style.width = Math.min(100, talk * 100) + '%'; },
   onGesture: g => { $('#camLast').textContent = { oui: 'Oui', non: 'Non', parler: 'Parler' }[g]; answer(g); },
@@ -762,7 +821,7 @@ async function boot() {
     return;
   }
   document.title = `Parler avec ${name()}`;
-  render();
+  showWelcome();
   flush();
   setInterval(() => { const c = document.querySelector('.clock'); if (c) { const now = new Date(); c.textContent = now.toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' }) + ' · ' + fmtT(now); } }, 30000);
 }
