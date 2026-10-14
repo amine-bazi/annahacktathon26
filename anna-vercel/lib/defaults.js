@@ -107,7 +107,7 @@ export const THEMES = [
     T('Quelqu’un d’autre', 'C’est à propos de quelqu’un d’autre ?', null, { action: 'spell' }),
     T('Nouvelle rencontre', 'Tu as rencontré quelqu’un de nouveau ?'),
   ], deeper: ['Tu as envie de revoir cette personne ?', 'Cette rencontre t’a fait plaisir ?', 'Tu veux que je lui transmette quelque chose ?', 'Il y a eu un malentendu ?', 'Tu veux en parler à l’équipe ?'] },
-  { id: 'passerelle', label: 'La Passerelle', type: 'centre', sub: 'Équipe, matériel', icon: 'passerelle', items: [
+  { id: 'passerelle', label: 'La Paseraile', type: 'centre', sub: 'Équipe, matériel', icon: 'passerelle', items: [
     T('Voir un soignant', 'Tu veux voir quelqu’un de l’équipe ?', kids([['Infirmière', 'Une infirmière ?'], ['Aide-soignante', 'Une aide-soignante ?'], ['Médecin', 'Le médecin ?'], ['Kiné', 'Le kiné ?'], ['Ergothérapeute', 'L’ergothérapeute ?'], ['Psychologue', 'La psychologue ?'], ['Orthophoniste', 'L’orthophoniste ?']])),
     T('Rendez-vous', 'Tu as une question sur un rendez-vous ?'),
     T('Salle commune', 'Tu veux aller en salle commune ?'),

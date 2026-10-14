@@ -24,7 +24,7 @@ function exampleData(questions) {
     h(20.5, 'douleur', ['Douleur', 'Dos', 'Forte'], { notes: [['Tu veux un antidouleur ?', 'oui']] }),
     h(22.1, 'soif', ['Boire / manger', 'Boire', 'Eau']),
     h(23.4, 'activites', ['Loisirs', 'Atelier', 'Musique'], { notes: [['Tu as aimé cette activité ?', 'oui']] }),
-    h(25.2, 'passerelle', ['La Passerelle', 'Voir un soignant', 'Kiné']),
+    h(25.2, 'passerelle', ['La Paseraile', 'Voir un soignant', 'Kiné']),
     h(26.4, 'position', ['Position', 'Remonter']),
     h(27.0, 'autre', ['Autre sujet', 'Souvenirs', 'Voyage'], { notes: [['C’est un souvenir heureux ?', 'oui']] }),
     h(29.8, 'emotions', ['Émotions', 'Inquiétude', 'Mes proches']),
@@ -152,10 +152,11 @@ export function createDemoBackend({ load = () => null, save = () => {}, withExam
     'delete-followup': b => { db.followups = db.followups.filter(f => String(f.id) !== String(b.id)); },
     'add-person': b => {
       const name = need(b.name, 'Prénom manquant'), id = `${slug(name) || 'p'}-${sfx()}`;
-      db.people.push({ id, name, role: String(b.role || '').trim(), kind: PEOPLE_KINDS.includes(b.kind) ? b.kind : 'Proches', position: db.people.length });
+      db.people.push({ id, name, role: String(b.role || '').trim(), kind: PEOPLE_KINDS.includes(b.kind) ? b.kind : 'Proches', photo: b.photo || null, position: db.people.length });
       return { id };
     },
     'delete-person': b => { db.people = db.people.filter(p => p.id !== b.id); },
+    'set-person-photo': b => { const p = db.people.find(x => x.id === b.id); if (p) p.photo = b.photo || null; },
     'save-plan': b => { db.patient.daily_plan = String(b.plan || ''); },
     'save-settings': b => { db.patient.settings = { reco: b.reco !== false, sens: Math.min(1.6, Math.max(0.5, Number(b.sens) || 1)), swap: !!b.swap, cam: b.cam === 'user' ? 'user' : 'environment' }; },
     'change-pin': b => { if ((b.pin || '').length < 4) throw new DemoError(400, 'Au moins 4 caractères'); db.patient.admin_pin = b.pin; },

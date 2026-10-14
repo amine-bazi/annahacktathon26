@@ -131,21 +131,27 @@ const fmtD = ts => {
   if (d.toDateString() === y.toDateString()) return 'Hier';
   return d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
 };
-const avatar = p => `<span class="av" style="background:hsl(${hue(p.name)} 38% 42%)">${esc(p.name.replace(/^Dr\.? /, '').slice(0, 1))}</span>`;
+const avatar = p => p.photo ? `<img class="av" src="${esc(p.photo)}" alt="">` : `<span class="av" style="background:hsl(${hue(p.name)} 38% 42%)">${esc(p.name.replace(/^Dr\.? /, '').slice(0, 1))}</span>`;
 const name = () => S?.patientName || 'Anna';
 function personTheme(p) { return (S.themes.find(t => t.dynamic && t.peopleKinds.includes(p.kind)) || S.themes.find(t => t.dynamic))?.id; }
 function toast(msg) { const d = document.createElement('div'); d.className = 'toast'; d.setAttribute('role', 'status'); d.textContent = msg; document.body.appendChild(d); setTimeout(() => d.remove(), 2800); }
 
 // Le « Oui » / « Non » d'Anna est toujours dit à voix haute : c'est sa voix pour les personnes autour d'elle.
 // La phrase suivante (question, résumé) attend la fin du mot au lieu de le couper.
-let answerSaidAt = 0;
+let answerSaidAt = 0, frVoice = null;
+const canSpeak = 'speechSynthesis' in window;
+function pickVoice() { const vs = speechSynthesis.getVoices(); frVoice = vs.find(v => /^fr[-_]FR/i.test(v.lang) && v.localService) || vs.find(v => /^fr/i.test(v.lang)) || null; }
+if (canSpeak) { pickVoice(); speechSynthesis.addEventListener?.('voiceschanged', pickVoice); }
+function utter(t) { const u = new SpeechSynthesisUtterance(t); u.lang = 'fr-FR'; if (frVoice) u.voice = frVoice; u.rate = 0.95; u.volume = 1; return u; }
+// iPhone / Safari : la voix doit être « débloquée » par un premier toucher de l'écran.
+addEventListener('pointerdown', () => { try { if (canSpeak) speechSynthesis.speak(utter(' ')); } catch { /* voix indisponible */ } }, { once: true });
 function sayAnswer(a) {
-  if (!('speechSynthesis' in window)) return;
-  try { speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(a === 'oui' ? 'Oui' : 'Non'); u.lang = 'fr-FR'; u.rate = 0.95; speechSynthesis.speak(u); answerSaidAt = Date.now(); } catch { /* voix indisponible */ }
+  if (!canSpeak) return;
+  try { speechSynthesis.cancel(); speechSynthesis.speak(utter(a === 'oui' ? 'Oui' : 'Non')); answerSaidAt = Date.now(); } catch { /* voix indisponible */ }
 }
 function speak(t, force) {
-  if ((!voice && !force) || !('speechSynthesis' in window)) return;
-  try { if (Date.now() - answerSaidAt > 1500) speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(t); u.lang = 'fr-FR'; u.rate = 0.95; speechSynthesis.speak(u); } catch { /* voix indisponible */ }
+  if ((!voice && !force) || !canSpeak) return;
+  try { if (Date.now() - answerSaidAt > 1500) speechSynthesis.cancel(); speechSynthesis.speak(utter(t)); } catch { /* voix indisponible */ }
 }
 function chime() {
   try {
@@ -277,13 +283,22 @@ function startQuick(sg) {
 function showPlan() { F = { mode: 'done', theme: 'journee', path: ['Ma journée', 'Programme du jour'], result: 'resolu', action: 'planning', entryNotes: [], priv: false, quick: true }; render(); speak('Voici le programme de ta journée.'); }
 function showQ() { F.qTs = Date.now(); render(); speak(cur().q); }
 
+// Ouverture en deux questions : « Coucou, est-ce que tu veux parler ? » puis « Ça va ? ».
+const INTRO = ['hello', 'welcome', 'rest'];
+function showHello() { F = { mode: 'hello' }; undo = []; render(); speak('Coucou, est-ce que tu veux parler ?'); }
 function showWelcome() { F = { mode: 'welcome' }; undo = []; render(); speak(`${name()}, ça va ?`); }
 function answer(a) {
   // Sur l'accueil, ni boutons ni caméra : oui / non / parler ne servent qu'à répondre aux questions.
   if (F.mode === 'home') return;
-  if (F.mode === 'welcome' && a !== 'parler') {
+  if (INTRO.includes(F.mode) && a !== 'parler') {
     if (view !== 'patient') return;
     flash(a); sayAnswer(a);
+    if (F.mode === 'rest') { if (a === 'oui') showHello(); return; }
+    if (F.mode === 'hello') {
+      record(newEntry('accueil', ['Tu veux parler ?', a === 'oui' ? 'Oui' : 'Non'], 'resolu'));
+      if (a === 'oui') return showWelcome();
+      F = { mode: 'rest' }; return render();
+    }
     mood = a === 'oui' ? 'ok' : 'ko';
     record(newEntry('accueil', ['Ça va ?', a === 'oui' ? 'Oui' : 'Non'], 'resolu'));
     boardPage = 0; boardTheme = null;
@@ -407,17 +422,17 @@ function render() {
   if (!S) return;
   renderTop();
   const m = $('#main');
-  $('#bar').hidden = view !== 'patient' || F.mode === 'home' || F.mode === 'welcome';
+  $('#bar').hidden = view !== 'patient' || F.mode === 'home' || INTRO.includes(F.mode);
   m.classList.toggle('board-mode', view === 'patient' && F.mode === 'home');
   if (view === 'admin') { m.innerHTML = renderAdmin(); bindAdmin(); return; }
-  m.innerHTML = F.mode === 'welcome' ? renderWelcome() : F.mode === 'home' ? renderBoard() : F.mode === 'q' ? renderQ() : F.mode === 'done' ? renderDone() : F.mode === 'deeper' ? renderDeeper() : renderSpell();
+  m.innerHTML = F.mode === 'hello' ? renderHello() : F.mode === 'rest' ? renderRest() : F.mode === 'welcome' ? renderWelcome() : F.mode === 'home' ? renderBoard() : F.mode === 'q' ? renderQ() : F.mode === 'done' ? renderDone() : F.mode === 'deeper' ? renderDeeper() : renderSpell();
   m.scrollTop = 0;
 }
 function renderTop() {
   const now = new Date(), nav = view === 'patient' && F.mode !== 'home';
   $('#top').innerHTML = `
     <div class="who"><b>${esc(name())}</b><span class="clock">${now.toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' })} · ${fmtT(now)}</span><span id="sync"></span></div>
-    ${nav && F.mode !== 'welcome' ? `<button class="ib nav-b" id="tBack" aria-label="Retour">${ic('back')}<span class="lb">Retour</span></button><button class="ib nav-b" id="tHome" aria-label="Accueil">${ic('home')}<span class="lb">Accueil</span></button>` : ''}
+    ${nav && !INTRO.includes(F.mode) ? `<button class="ib nav-b" id="tBack" aria-label="Retour">${ic('back')}<span class="lb">Retour</span></button><button class="ib nav-b" id="tHome" aria-label="Accueil">${ic('home')}<span class="lb">Accueil</span></button>` : ''}
     ${view === 'patient' && F.mode === 'home' ? `<button class="ib" id="tMood" aria-label="Redemander : ça va ?">${ic('content')}<span class="lb">Ça va ?</span></button>` : ''}
     <button class="ib ${tracker.running ? 'on' : ''}" id="tCam" aria-label="Caméra" title="${GESTURES}">${ic('cam')}<span class="lb">${tracker.running ? 'Tête active' : 'Caméra'}</span></button>
     <button class="ib ${voice ? 'on' : ''}" id="tVoice" aria-label="Voix" title="Lire les questions à voix haute">${ic('voice')}<span class="lb">Voix</span></button>
@@ -478,6 +493,27 @@ function renderBoard() {
   boardPage = Math.min(boardPage, pages - 1);
   const shown = rows.slice(boardPage * perPage, (boardPage + 1) * perPage);
   return `<div class="page">${note}<div class="prows" style="grid-template-rows:repeat(${perPage},minmax(0,1fr))">${shown.join('')}</div>${pager(boardPage, pages, 'prevPage', 'nextPage')}</div>`;
+}
+// Tout premier écran : « Coucou, est-ce que tu veux parler ? » en oui / non.
+function renderHello() {
+  return `<div class="welcome">
+    <p class="tag">${esc(name())}</p>
+    <h1 class="q hello">Coucou, est-ce que tu veux parler ?</h1>
+    <p class="muted">${GESTURES}</p>
+    <div class="wbtns">
+      <button class="wb no" data-act="hNon">${ic('calme')}<span>Non, pas maintenant</span></button>
+      <button class="wb yes" data-act="hOui">${ic('talk')}<span>Oui, je veux parler</span></button>
+    </div>
+    <button class="btn" data-act="wSkip">Passer, voir les thèmes ${ic('droite')}</button>
+  </div>`;
+}
+// Si Anna ne veut pas parler : écran calme, on reprend quand elle le souhaite (bouton ou « oui » de la tête).
+function renderRest() {
+  return `<div class="welcome">
+    <h1 class="q hello">D’accord, pas maintenant.</h1>
+    <p class="muted" style="font-size:16px">On reste là. Touche « Reprendre » ou fais oui de la tête quand tu veux.</p>
+    <button class="btn primary" data-act="hello" style="font-size:18px;padding:14px 22px">${ic('talk')} Reprendre</button>
+  </div>`;
 }
 // Écran d'ouverture : « Ça va ? » en oui / non (boutons, clavier ou tête), avant les thèmes.
 function renderWelcome() {
@@ -564,7 +600,8 @@ $('#main').addEventListener('click', e => {
     const a = b.dataset.act;
     if (a === 'scan') startScan(); else if (a === 'spell') startSpell(['Message']); else if (a === 'plan') showPlan();
     else if (a === 'themeScan') startTheme(b.dataset.th);
-    else if (a === 'wOui') answer('oui'); else if (a === 'wNon') answer('non'); else if (a === 'wSkip') { mood = null; goHome(); }
+    else if (a === 'wOui' || a === 'hOui') answer('oui'); else if (a === 'wNon' || a === 'hNon') answer('non'); else if (a === 'wSkip') { mood = null; goHome(); }
+    else if (a === 'hello') showHello();
     else if (a === 'openTheme') { boardTheme = b.dataset.th; themePage = 0; render(); }
     else if (a === 'closeTheme') { boardTheme = null; render(); }
     else if (a === 'nextPage') { boardPage++; render(); } else if (a === 'prevPage') { boardPage = Math.max(0, boardPage - 1); render(); }
@@ -586,7 +623,22 @@ document.addEventListener('keydown', e => {
 function flash(a) { const el = $({ oui: '#bYes', non: '#bNo', parler: '#bTalk' }[a]); el.classList.add('flash'); setTimeout(() => el.classList.remove('flash'), 350); }
 
 /* ================================================================ espace admin */
-let tab = 'resume', addTheme = '', qSearch = '', histF = '', armed = '', newKey = '';
+let tab = 'resume', addTheme = '', qSearch = '', histF = '', armed = '', newKey = '', pendingPhoto = null;
+
+// Photo d'un contact : recadrée en carré et réduite à 192 px (JPEG ≈ 15 Ko) avant d'être enregistrée.
+function readPhoto(file) {
+  return new Promise((resolve, reject) => {
+    const img = new Image(), url = URL.createObjectURL(file);
+    img.onload = () => {
+      const size = 192, c = document.createElement('canvas'), k = Math.min(img.width, img.height);
+      c.width = c.height = size;
+      c.getContext('2d').drawImage(img, (img.width - k) / 2, (img.height - k) / 2, k, k, 0, 0, size, size);
+      URL.revokeObjectURL(url); resolve(c.toDataURL('image/jpeg', 0.82));
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('Photo illisible, réessaie.')); };
+    img.src = url;
+  });
+}
 
 function openAdmin() {
   if (S.isAdmin) { view = 'admin'; return render(); }
@@ -704,10 +756,13 @@ function admAdd() {
         <label class="fl">Prénom<input type="text" id="pName" required maxlength="60"></label>
         <label class="fl">Lien avec ${esc(name())}<input type="text" id="pRole" placeholder="ex. sœur, ami, kiné" maxlength="80"></label>
         <label class="fl">Catégorie<select id="pKind">${KINDS.map(([v, l]) => `<option value="${v}">${l}</option>`).join('')}</select></label>
+        <div class="fl">Photo (facultatif)
+          <div class="photo-row"><img id="pPrev" class="av big" alt="" ${pendingPhoto ? `src="${pendingPhoto}"` : 'hidden'}>
+            <label class="btn">${ic('cam')} ${pendingPhoto ? 'Reprendre la photo' : 'Prendre une photo'}<input type="file" id="pPhoto" accept="image/*" capture="environment" hidden></label></div></div>
         <button class="btn primary">Ajouter le contact</button>
       </form>
       <details ${S.people.length ? '' : 'open'}><summary>Contacts (${S.people.length})</summary>
-        <ul class="rows">${S.people.map(p => `<li>${avatar(p)}<div class="t"><b>${esc(p.name)}</b><small>${esc(p.role)} · ${esc((KINDS.find(k => k[0] === p.kind) || [, p.kind])[1])}</small></div><button class="btn sm danger" data-pdel="${esc(p.id)}">${armed === p.id ? 'Confirmer' : 'Retirer'}</button></li>`).join('') || '<li class="muted">Aucun contact pour l’instant.</li>'}</ul>
+        <ul class="rows">${S.people.map(p => `<li>${avatar(p)}<div class="t"><b>${esc(p.name)}</b><small>${esc(p.role)} · ${esc((KINDS.find(k => k[0] === p.kind) || [, p.kind])[1])}</small></div><label class="btn sm" title="Photo de ${esc(p.name)}">${ic('cam')}<span class="lb2">Photo</span><input type="file" accept="image/*" capture="environment" data-pphoto="${esc(p.id)}" hidden></label><button class="btn sm danger" data-pdel="${esc(p.id)}">${armed === p.id ? 'Confirmer' : 'Retirer'}</button></li>`).join('') || '<li class="muted">Aucun contact pour l’instant.</li>'}</ul>
       </details>
     </div>`;
 }
@@ -759,7 +814,9 @@ function bindAdmin() {
   on('[data-pdel]', 'click', e => { const id = e.currentTarget.dataset.pdel; confirmOr(id, () => adm('delete-person', { id }, 'Contact retiré')); });
   on('#fQ', 'submit', e => { e.preventDefault(); adm('add-question', { themeId: $('#qTheme').value, parentId: $('#qParent').value, label: $('#qLabel').value, text: $('#qText').value, kind: $('#qKind').value, urgent: $('#qUrg').checked, intensity: $('#qInt').checked }, 'Question ajoutée'); });
   on('#fD', 'submit', e => { e.preventDefault(); adm('add-followup', { themeId: addTheme, text: $('#dText').value }); });
-  on('#fP', 'submit', e => { e.preventDefault(); adm('add-person', { name: $('#pName').value, role: $('#pRole').value, kind: $('#pKind').value }, 'Contact ajouté'); });
+  on('#fP', 'submit', async e => { e.preventDefault(); const photo = pendingPhoto; const r = await adm('add-person', { name: $('#pName').value, role: $('#pRole').value, kind: $('#pKind').value, photo }, 'Contact ajouté'); if (r) { pendingPhoto = null; render(); } });
+  on('#pPhoto', 'change', async e => { const f = e.target.files[0]; if (!f) return; try { pendingPhoto = await readPhoto(f); render(); } catch (x) { toast(x.message); } });
+  on('[data-pphoto]', 'change', async e => { const f = e.target.files[0]; if (!f) return; try { adm('set-person-photo', { id: e.target.dataset.pphoto, photo: await readPhoto(f) }, 'Photo enregistrée'); } catch (x) { toast(x.message); } });
   on('#fT', 'submit', async e => { e.preventDefault(); const r = await adm('add-theme', { label: $('#tName').value, typeId: $('#tGroup').value, private: $('#tPriv').checked }, 'Thème créé : ajoute-lui des questions dans « Ajouter »'); if (r?.id) addTheme = r.id; });
   on('#fTy', 'submit', e => { e.preventDefault(); adm('add-type', { name: $('#tyName').value }, 'Catégorie créée : ajoute-lui un thème'); });
   on('#savePlan', 'click', () => adm('save-plan', { plan: $('#plan').value }, 'Programme enregistré'));
@@ -821,7 +878,7 @@ async function boot() {
     return;
   }
   document.title = `Parler avec ${name()}`;
-  showWelcome();
+  showHello();
   flush();
   setInterval(() => { const c = document.querySelector('.clock'); if (c) { const now = new Date(); c.textContent = now.toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' }) + ' · ' + fmtT(now); } }, 30000);
 }

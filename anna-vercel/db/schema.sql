@@ -80,9 +80,11 @@ CREATE TABLE IF NOT EXISTS people (
   name        text NOT NULL,
   role        text NOT NULL DEFAULT '',
   kind        text NOT NULL CHECK (kind IN ('Proches', 'Équipe', 'Rencontres')),
+  photo       text,  -- petite photo JPEG (data URL, ~15 Ko) prise depuis l'espace admin
   position    int NOT NULL DEFAULT 0,
   PRIMARY KEY (patient_id, id)
 );
+ALTER TABLE people ADD COLUMN IF NOT EXISTS photo text;
 
 -- Un échange abouti (besoin compris, message épelé, demande de parole…). Jamais pour un thème privé.
 CREATE TABLE IF NOT EXISTS conversations (

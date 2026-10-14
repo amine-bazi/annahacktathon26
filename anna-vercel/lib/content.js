@@ -69,7 +69,7 @@ export function buildBootstrap({ patient, types, themes, questions, followups, p
       items: (byParent.get('§' + t.id) || []).map(toItem),
       deeper: deeperBy.get(t.id) || [],
     })),
-    people: people.map(p => ({ id: p.id, name: p.name, role: p.role, kind: p.kind })),
+    people: people.map(p => ({ id: p.id, name: p.name, role: p.role, kind: p.kind, photo: p.photo || null })),
     stats: statMap,
     history: history.map(h => ({
       id: h.id, ts: new Date(h.created_at).getTime(), theme: h.theme_id, path: h.path, result: h.result,

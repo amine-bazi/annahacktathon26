@@ -85,15 +85,17 @@ anna-vercel/
 
 | Écran | Rôle |
 |---|---|
-| **Ouverture « Ça va ? »** | Premier écran : « Ça va ? » en deux grands boutons Oui / Non (ou gestes de tête). La réponse est enregistrée et met en tête les thèmes utiles : **ça ne va pas** → Douleur, Émotions, Position, Chaud / froid, Boire / manger, Toilette ; **ça va** → Poser une question, Dire quelque chose, Proches, Loisirs, Ma journée, Autre sujet. Le Top 3 prend alors le pictogramme principal de chacun des 3 premiers thèmes. Le bouton « Ça va ? » de la barre du haut repose la question |
+| **Ouverture « Coucou »** | Tout premier écran : « Coucou, est-ce que tu veux parler ? » Oui / Non. Non → écran calme « D’accord, pas maintenant » avec « Reprendre » (ou oui de la tête). Oui → « Ça va ? ». Réponse enregistrée |
+| **Ouverture « Ça va ? »** | Deuxième écran : « Ça va ? » en deux grands boutons Oui / Non (ou gestes de tête). La réponse est enregistrée et met en tête les thèmes utiles : **ça ne va pas** → Douleur, Émotions, Position, Chaud / froid, Boire / manger, Toilette ; **ça va** → Poser une question, Dire quelque chose, Proches, Loisirs, Ma journée, Autre sujet. Le Top 3 prend alors le pictogramme principal de chacun des 3 premiers thèmes. Le bouton « Ça va ? » de la barre du haut repose la question |
 | **Accueil** | Pensé pour le téléphone que tient la personne en face d'Anna : texte et pictogrammes en grand, sans défilement. Une ligne par thème = le thème, ses **3 pictogrammes les plus importants** (moteur de recommandation) et « + » pour le reste. Le nombre de lignes s'adapte à l'écran ; **Page suivante / Précédente** pour les autres thèmes. Page 1 : **Top 3** puis les besoins essentiels (Boire / manger, Douleur, Position, Toilette) |
+| **Voix** | « Oui » / « Non » toujours dits à voix haute (voix française choisie explicitement, débloquée au premier toucher sur iPhone) ; lecture des questions avec le bouton Voix |
 | **Oui · Non · Parler** | Absents de l'accueil : la barre de réponse et les gestes de tête (caméra) ne sont actifs que pendant les questions |
 | **Page d'un thème** | Tous les pictogrammes du thème en grand, en pages si besoin ; « Oui / non » parcourt le thème question par question |
 | **Question** | Une question en très grand ; réponse par Oui / Non / Parler (boutons, clavier O/N/P, ou tête) |
 | **Résultat** | Résumé du besoin (« Douleur › Dos › Forte »), alerte si prioritaire, questions « Pour aller plus loin » pour l'entourage |
 | **Échanger** | Anna pose une question ou dit une phrase : affichée en grand et lue à voix haute |
 | **Épeler** | Balayage par groupes de lettres puis lettre par lettre |
-| **Espace admin** | Protégé par code. Résumé (historique) · Ajouter (ajout de questions, ajout d’un contact) · Réglages (programme, gestes de tête, options) |
+| **Espace admin** | Protégé par code. Résumé (historique) · Ajouter (ajout de questions, ajout d’un contact avec **photo** prise à l’appareil) · Réglages (programme, gestes de tête, options) |
 
 ### 3.3 Reconnaissance des mouvements de tête
 
@@ -165,7 +167,7 @@ Toutes les requêtes portent l'en-tête `x-device-key` (clé d'appareil). L'espa
 | POST | `/api/auth?action=setup` | appareil | Créer le code admin (si aucun) |
 | POST | `/api/auth?action=login` | appareil | Ouvrir une session admin (8 h) |
 | POST | `/api/auth?action=logout` | appareil | Fermer la session |
-| POST | `/api/admin?action=…` | appareil + admin | `add-question`, `delete-question`, `add-theme`, `add-type`, `delete-type`, `add-followup`, `delete-followup`, `add-person`, `delete-person`, `save-plan`, `save-settings`, `change-pin`, `rotate-device-key` |
+| POST | `/api/admin?action=…` | appareil + admin | `add-question`, `delete-question`, `add-theme`, `add-type`, `delete-type`, `add-followup`, `delete-followup`, `add-person`, `delete-person`, `set-person-photo`, `save-plan`, `save-settings`, `change-pin`, `rotate-device-key` |
 
 Trois fonctions seulement (routage par `?action=`) : on reste loin des limites du plan Hobby et les démarrages à froid sont mutualisés.
 
@@ -235,6 +237,7 @@ erDiagram
     text name
     text role
     text kind "Proches, Équipe, Rencontres"
+    text photo "JPEG recadré 192 px (data URL)"
   }
   conversations {
     uuid id PK "créé par la tablette"

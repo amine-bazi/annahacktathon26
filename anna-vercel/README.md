@@ -47,7 +47,7 @@ Puis ouvrir http://localhost:3000/?cle=demo. Les données sont en mémoire et re
 
 ## Utilisation
 
-- L'application s'ouvre sur **« Ça va ? »** (Oui / Non) : la réponse met en tête les thèmes utiles (douleur et confort si ça ne va pas, échanges et activités si ça va).
+- L'application s'ouvre sur **« Coucou, est-ce que tu veux parler ? »** puis **« Ça va ? »** (Oui / Non) : la réponse met en tête les thèmes utiles (douleur et confort si ça ne va pas, échanges et activités si ça va).
 - Pendant les questions, Anna répond avec **Non · Parler · Oui** en bas de l'écran, au clavier (O / N / P), ou avec la tête après un appui sur **Caméra** :
   - **tête tournée vers sa gauche = oui**
   - **tête tournée vers sa droite = non**

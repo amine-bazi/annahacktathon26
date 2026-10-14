@@ -9,6 +9,13 @@ import { send, handle, HttpError, str, int } from '../lib/http.js';
 
 const suffix = () => randomBytes(3).toString('hex');
 
+// Photo de contact : petite image JPEG/PNG/WebP en data URL, recadrée côté navigateur (≤ 200 Ko).
+function photo(v) {
+  if (v == null || v === '') return null;
+  if (typeof v !== 'string' || v.length > 200_000 || !/^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/.test(v)) throw new HttpError(400, 'Photo invalide');
+  return v;
+}
+
 // Position suivante dans une liste (les noms de table sont figés dans le code, jamais issus de la requête).
 const POSITION = {
   questions: (pid, scope) => sql`SELECT coalesce(max(position) + 1, 0)::int AS p FROM questions WHERE patient_id = ${pid} AND coalesce(parent_id, '§' || theme_id) = ${scope}`,
@@ -80,9 +87,12 @@ const actions = {
     const name = str(b.name, 60);
     const kind = PEOPLE_KINDS.includes(b.kind) ? b.kind : 'Proches';
     const id = `${slug(name) || 'p'}-${suffix()}`;
-    await sql`INSERT INTO people (patient_id, id, name, role, kind, position)
-              VALUES (${p.id}, ${id}, ${name}, ${str(b.role, 80, { optional: true })}, ${kind}, ${await nextPosition('people', p.id)})`;
+    await sql`INSERT INTO people (patient_id, id, name, role, kind, photo, position)
+              VALUES (${p.id}, ${id}, ${name}, ${str(b.role, 80, { optional: true })}, ${kind}, ${photo(b.photo)}, ${await nextPosition('people', p.id)})`;
     return { id };
+  },
+  async 'set-person-photo'(p, b) {
+    await sql`UPDATE people SET photo = ${photo(b.photo)} WHERE patient_id = ${p.id} AND id = ${str(b.id, 80)}`;
   },
   async 'delete-person'(p, b) {
     await sql`DELETE FROM people WHERE patient_id = ${p.id} AND id = ${str(b.id, 80)}`;
